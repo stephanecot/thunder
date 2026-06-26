@@ -10,19 +10,24 @@ thunder-angular maintains a hierarchical YAML index under `<project>/.claude/cac
 Read the index, **never the `.ts` files**, while the index answers the question. Token cost stays
 constant regardless of repo size.
 
-## Golden rule
-Load the top → drill one level → read **one shard**. Only open a `.ts` file if the index lacks the
-precise detail asked (e.g. a method body).
+## Golden rule (two-tier index)
+**Card first, detail only when needed.** Each feature context has a **card** (`<feature>.card.yaml`,
+≤20 lines: name, purpose, capabilities, component names, services, route signatures `path → target`) and a
+**detail** (`<feature>.yaml`: full components, DI graph, NgModules, use-case flows, functional layer). The
+card answers most structure/where/what questions at ~10% of the detail's tokens. Open the detail only for a
+precise rule/flow/annotation; open a `.ts` only for a method body or template detail.
 
 ## Workflow
-1. Ensure the index exists (the SessionStart hook does this): otherwise
-   `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" ensure "${CLAUDE_PROJECT_DIR}"`
-2. **Top** — `Read .claude/cache/thunder-angular/index.yaml`: projects (+ theme/keywords), counts.
-3. **Project drill-down** — `Read .claude/cache/thunder-angular/projects/<project>/_index.yaml`: one line
-   per feature context (with purpose).
-4. **Context shard** — `Read .claude/cache/thunder-angular/projects/<project>/<feature>.yaml`: components
-   (selector, standalone, inputs/outputs, deps), services (providedIn, deps), NgModules, routes (+intent),
-   the DI graph, and use-cases (route → component → service flows).
+1. **One-payload retrieval (preferred)**:
+   `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" ask "<keywords>" "${CLAUDE_PROJECT_DIR}"`
+   → returns the **cards** of matching feature contexts + relevant routes. One call. Enough for most questions.
+2. Otherwise, manual drill-down:
+   - **Top** — `Read .claude/cache/thunder-angular/index.yaml`: projects (+ theme/keywords), counts.
+   - **Project** — `Read .../projects/<project>/_index.yaml`: one line per feature (with `card:` pointer).
+   - **Card** — `Read .../projects/<project>/<feature>.card.yaml` (≤20 lines). **Answer from it if it suffices.**
+   - **Detail (only if needed)** — `Read .../projects/<project>/<feature>.yaml` (the card's `detail` field gives the path):
+     components (selector, standalone, inputs/outputs, deps), services, NgModules, routes (+intent), DI graph,
+     use-case flows.
 
 ## Direct views
 - All routes: `Read .claude/cache/thunder-angular/routes.yaml` (or `thunder.mjs routes <root>`).

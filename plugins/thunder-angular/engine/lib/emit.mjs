@@ -10,7 +10,24 @@ function writeIfChanged(path, content) {
   return true;
 }
 
-const shardFile = (dir, ctx) => join(dir, 'projects', ctx.project, ctx.packages.join(',') + '.yaml');
+const shardRel = (ctx) => `projects/${ctx.project}/${ctx.packages.join(',')}.yaml`;
+const cardRel = (ctx) => `projects/${ctx.project}/${ctx.packages.join(',')}.card.yaml`;
+const shardFile = (dir, ctx) => join(dir, shardRel(ctx));
+const cardFile = (dir, ctx) => join(dir, cardRel(ctx));
+
+/** Tier-1 CARD: ≤~20 lines, answers most structure/where/what questions on its own. */
+function buildCard(c, f) {
+  return {
+    card: {
+      id: c.id, name: f.name || c.name, purpose: f.purpose || null,
+      ...(f.capabilities ? { capabilities: f.capabilities } : {}),
+      components: c.components.map((cp) => cp.n),
+      services: Object.keys(c.services),
+      routes: c.routes.map((r) => `${r.path || '/'} → ${r.target || r.kind}`),
+      detail: shardRel(c),
+    },
+  };
+}
 
 /** Emit the Angular YAML index from the derived model. */
 export function emit(root, model, functional = {}) {
@@ -28,7 +45,7 @@ export function emit(root, model, functional = {}) {
   const index = {
     meta: {
       projects: model.projects.length, contexts: model.contexts.length, routes: model.routes.length,
-      shard_path: 'projects/<project>/<feature>.yaml  (id = <project>/<feature>)',
+      shard_path: 'projects/<project>/<feature>.card.yaml (tier-1 card, read first) ; .yaml (tier-2 detail)',
     },
     projects: [...byProject.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, ctxs]) => {
       const m = loadModuleFunctional(functional)[name];
@@ -55,14 +72,15 @@ export function emit(root, model, functional = {}) {
         id: c.id, name: functional[c.id]?.name || c.name,
         purpose: functional[c.id]?.purpose || null,
         components: c.components.length, services: Object.keys(c.services).length, routes: c.routes.length,
+        card: cardRel(c),
       })),
     };
     if (writeIfChanged(join(dir, 'projects', name, '_index.yaml'), dump(modIndex))) changed++;
   }
 
-  // global route table
+  // global route table (slim — flow lives in shards)
   if (writeIfChanged(join(dir, 'routes.yaml'),
-    dump({ routes: model.routes.map((r) => ({ path: r.path, target: r.target, kind: r.kind, ctx: r.ctx, flow: r.flow })) }))) changed++;
+    dump({ routes: model.routes.map((r) => ({ path: r.path, target: r.target, kind: r.kind, ctx: r.ctx })) }))) changed++;
 
   // grepable capability map
   const caps = model.contexts.map((c) => ({ id: c.id, purpose: functional[c.id]?.purpose || '', capabilities: functional[c.id]?.capabilities || [] }));
@@ -96,6 +114,11 @@ export function emit(root, model, functional = {}) {
       },
     };
     if (writeIfChanged(path, dump(shard))) changed++;
+
+    // tier-1 card
+    const cpath = cardFile(dir, c);
+    wanted.add(cpath);
+    if (writeIfChanged(cpath, dump(buildCard(c, f)))) changed++;
   }
 
   // prune stale shards

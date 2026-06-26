@@ -14,11 +14,14 @@ ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${CLAUDE_PROJECT_DIR}"
 ```
 
 ## Procedure
-1. **Target the feature(s)**: `Grep` the question's keywords in
-   `.claude/cache/thunder-angular/capability-map.yaml` and/or `routes.yaml`; `Read index.yaml` to find the
-   project.
-2. **Load the shard(s)**: `Read` 1–3 context shards (`projects/<project>/<feature>.yaml`) — components,
-   services, routes (+intent), DI graph, use-case flows, functional layer. **Often enough — stop here.**
+1. **Deterministic one-payload retrieval (default step)**:
+   `node "$ENG" ask "<keywords>" "$ROOT"` → returns the **cards** of matching feature contexts (name,
+   purpose, capabilities, components, services, routes) + relevant routes. **One call.** For a structure /
+   where / what / route / flow question, **this is enough — answer from it.**
+   (Manual alternative: `Grep` `capability-map.yaml`, then `Read` the targeted `<feature>.card.yaml`.)
+2. **Detail only if the card is not enough** (precise rule, exact flow, NgModule metadata, component
+   annotation): `Read .../projects/<project>/<feature>.yaml` (path in the card's `detail` field) — components,
+   services, routes (+intent), DI graph, use-case flows, functional layer. Open **one** detail shard at a time.
 3. **Only if real code is needed** (a method body, a template detail): delegate to `Explore` sub-agents
    (Task), **capped ~3-4**, each given the relevant shard + exact `file:line`. They return short
    conclusions, not dumps. Use `sym def <Name>` to locate a symbol before delegating.

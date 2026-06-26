@@ -3,6 +3,7 @@ import { existsSync, rmSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from './lib/build.mjs';
+import { dump } from './lib/yaml.mjs';
 import { appendDirty, drainDirty, readCache } from './lib/cache.mjs';
 import {
   buildEvidence, staleContexts, setFunctional,
@@ -102,6 +103,30 @@ async function cmdSetModuleFunctional(root, name) {
   console.log(`thunder-angular: project theme updated for ${name}${entry.theme ? ` ("${entry.theme}")` : ''}`);
 }
 
+/** Deterministic retrieval: one payload = cards of matching feature contexts + matching routes. */
+function cmdAsk(root, query) {
+  if (!query) { console.error('usage: ask "<keywords>" <root>'); process.exit(1); }
+  const { model, functional } = build(root);
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const hit = (s) => terms.some((t) => (s || '').toLowerCase().includes(t));
+  const cards = [];
+  for (const c of model.contexts) {
+    const f = functional[c.id] || {};
+    const hay = [c.id, f.name || c.name, f.purpose || '', ...(f.capabilities || []), ...c.components.map((cp) => cp.n), ...Object.keys(c.services), ...c.routes.map((r) => r.path)].join(' ');
+    if (!hit(hay)) continue;
+    cards.push({
+      id: c.id, name: f.name || c.name, purpose: f.purpose || null,
+      ...(f.capabilities ? { capabilities: f.capabilities } : {}),
+      components: c.components.map((cp) => cp.n),
+      services: Object.keys(c.services),
+      routes: c.routes.map((r) => `${r.path || '/'} → ${r.target || r.kind}`),
+      detail: `projects/${c.project}/${c.packages.join(',')}.yaml`,
+    });
+  }
+  const routes = model.routes.filter((r) => hit(`${r.path} ${r.target} ${r.kind}`)).map((r) => ({ path: r.path, target: r.target, kind: r.kind }));
+  console.log(dump({ query, matched_contexts: cards.length, cards, routes }));
+}
+
 function cmdSym(root, sub, name) {
   if (!name) { console.error('usage: sym <def|refs> <Name>'); process.exit(1); }
   const cache = readCache(root);
@@ -168,6 +193,7 @@ if (flags.has('--selftest')) {
     case 'ensure': cmdEnsure(R(pos[1])); break;
     case 'overview': cmdOverview(R(pos[1])); break;
     case 'routes': cmdRoutes(R(pos[1])); break;
+    case 'ask': cmdAsk(R(pos[2]), pos[1]); break;
     case 'stale': cmdStale(R(pos[1]), flags.has('--json')); break;
     case 'stale-modules': cmdStaleModules(R(pos[1]), flags.has('--json')); break;
     case 'reset-functional': cmdResetFunctional(R(pos[1])); break;
