@@ -28,6 +28,45 @@ function denseTypes(types) {
   });
 }
 
+/** Detect the broad architecture style from package/feature names (deterministic, no LLM). */
+function archStyle(model) {
+  const pkgs = model.contexts.flatMap((c) => c.packages).join(' ').toLowerCase();
+  if (/\b(domain|application|infrastructure|adapter|adapters|port|ports)\b/.test(pkgs)) {
+    return 'hexagonal/clean (domain/application/infrastructure packages detected)';
+  }
+  return 'layered (controller/service/repository)';
+}
+
+/** Tier-0 PROJECT BRIEF: one inline read that answers ~70% of archi/overview/endpoint questions. */
+function buildBrief(model, functional, byModule) {
+  const fmod = loadModuleFunctional(functional);
+  const modules = [...byModule.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, ctxs]) => ({
+    name,
+    role: fmod[name]?.theme || ctxs.map((c) => functional[c.id]?.purpose).filter(Boolean)[0] || null,
+    contexts: ctxs.length,
+    endpoints: ctxs.reduce((a, c) => a + c.endpoints.length, 0),
+  }));
+  const rules = [];
+  for (const c of model.contexts) {
+    const f = functional[c.id];
+    if (f?.business_rules) for (const r of f.business_rules) { if (rules.length < 8) rules.push(typeof r === 'string' ? r : r.rule); }
+  }
+  const eps = model.endpoints.map((e) => `${e.verb} ${e.path}  (${e.controller})`);
+  // keep the brief small (≤~800 tokens): inline the full list only when short, else summarize
+  const endpoints = eps.length <= 50
+    ? eps
+    : { count: eps.length, note: 'too many to inline — grep endpoints.yaml or use `ask "<kw>"`' };
+  return {
+    project_brief: {
+      arch: archStyle(model),
+      modules,
+      endpoints,
+      ...(rules.length ? { key_rules: rules } : {}),
+      drill: 'capability-map.yaml (grep) · modules/<m>/<ctx>.card.yaml (card) · .yaml (detail) · `ask "<kw>"`',
+    },
+  };
+}
+
 /** Tier-1 CARD: ≤~20 lines, answers most structure/where/what questions on its own. */
 function buildCard(c, f) {
   return {
@@ -77,6 +116,9 @@ export function emit(root, model, functional = {}) {
     }),
   };
   if (writeIfChanged(join(dir, 'index.yaml'), dump(index))) changed++;
+
+  // TIER-0 project brief: the single inline read for archi/overview/endpoint questions
+  if (writeIfChanged(join(dir, 'project-brief.yaml'), dump(buildBrief(model, functional, byModule)))) changed++;
 
   // PER-MODULE index: lists that module's contexts (1 line each) — the drill-down level
   for (const [name, ctxs] of byModule) {

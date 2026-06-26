@@ -1,51 +1,46 @@
 ---
 name: thunder-java-codemap
-description: Explore and understand a Java/Spring Boot codebase token-minimally via thunder's pre-built YAML index (modules, contexts, endpoints, beans, JPA entities, business meaning). Use whenever the user asks how the app is structured, where something lives, what endpoints/services/entities exist, or what a module does — instead of reading .java files.
+description: Explore and understand a Java/Spring Boot codebase token-minimally by answering INLINE from thunder's pre-built YAML index (modules, contexts, endpoints, beans, JPA entities, business meaning). Use whenever the user asks how the app is structured, where something lives, what endpoints/services/entities exist, or what a module does — instead of reading .java files.
 allowed-tools: Read, Bash, Grep
 ---
 
-# codemap — understand the codebase without reading it
+# codemap — understand the codebase, INLINE
 
-thunder maintains a hierarchical YAML index under `<project>/.claude/cache/thunder-java/`. Read the index,
-**never the `.java` files**, while the index answers the question. Token cost stays constant regardless of
-repo size.
+thunder maintains a YAML index under `<project>/.claude/cache/thunder-java/`. Answer from it **in the main
+loop**; never read `.java` while the index answers.
 
-## Golden rule (two-tier index)
+## Rule #1 — answer inline, sub-agent budget = 0
+**Do NOT spawn ANY sub-agent (Task/Explore) for structure / where / what / which endpoint / which flow /
+which business rule.** A sub-agent costs ~**11k tokens of fixed overhead**; answering inline costs ~**1k**
+(≈8× cheaper). Not spawning an agent IS the optimization. A sub-agent is justified only to read a real
+`.java` method body — then 1 agent max, seeded with exact `file:line` from the index.
 
-> **Card first, detail only when needed.** Each context has a **card** (`<ctx>.card.yaml`, ≤20 lines:
-> name, purpose, capabilities, type names, endpoints `verb+path`, #beans/#entities) and a **detail**
-> (`<ctx>.yaml`: full signatures, field annotations, cited `business_rules`, intents, use-cases). The
-> **card answers ~80% of questions** (structure / where / what / endpoints / flow) at ~10% of the detail's
-> tokens. Open the **detail** only for a precise business rule, a full signature or a field annotation;
-> open a `.java` only for a method body.
+## Workflow (all inline)
 
-## Workflow
+1. **Architecture / overview / "what does the app do" / list all endpoints** → read **one** file:
+   `Read .claude/cache/thunder-java/project-brief.yaml` (arch style, modules + roles, all endpoints
+   verb+path+controller, key business rules). Answer from it. **Do not also read `index.yaml` or cards.**
 
-1. **One-payload retrieval (preferred)**:
-   `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" ask "<keywords from the question>" "${CLAUDE_PROJECT_DIR}"`
-   → returns the **cards** of matching contexts + relevant endpoints. One call, no manual grep+drill.
-   Enough for most questions.
+2. **A specific feature / where / flow / rule** → **one** command:
+   `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" ask "<keywords>" "${CLAUDE_PROJECT_DIR}"`
+   → ranked top-3 cards; the **#1 hit carries its `business_rules` + `flows`** so it is self-sufficient.
+   **Do NOT combine** this with reading `index.yaml` / `capability-map.yaml` / individual `.card.yaml`
+   (measured waste). Need more: `--top N`. Need full detail of one context: `ask --detail <id> "$ROOT"`.
 
-2. Otherwise, manual drill-down:
-   - **Top** — `Read .claude/cache/thunder-java/index.yaml`: modules + counters (~10 lines).
-   - **Module** — `Read .../modules/<module>/_index.yaml`: one line per context (with `card:` pointer).
-   - **Card** — `Read .../modules/<module>/<packages>.card.yaml` (≤20 lines). **Answer from the card if it
-     suffices.**
+3. Manual drill-down (only if you prefer files over `ask`):
+   - **Card** — `Read .../modules/<module>/<packages>.card.yaml` (≤20 lines, the `card:` field in the
+     module `_index.yaml` points to it). Answer from the card if it suffices.
    - **Detail (only if the card is not enough)** — `Read .../modules/<module>/<packages>.yaml` (the card's
      `detail` field gives the path).
 
-> Example: "which endpoints / types / dependencies of module X" → card. "the exact validation on the email
-> field" → detail. "the body of the register method" → the `.java`.
+> Example: "endpoints / types / dependencies of module X" → project-brief or `ask`. "exact validation on
+> the email field" → `ask` #1 hit rules, or the detail shard. "the body of register()" → 1 seeded agent.
 
-## Direct views
-
-- All endpoints: `Read .claude/cache/thunder-java/endpoints.yaml` (or `thunder.mjs endpoints <root>`).
-- Discovery "who handles X?": `Grep` `capability-map.yaml` (flat, greppable) — do not load it whole.
-- Counters: `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" overview "${CLAUDE_PROJECT_DIR}"`
+## Inline vs fan-out artifacts
+- **Inline** (read directly, no agent): `project-brief.yaml`, `ask` output, `capability-map.yaml` (grep),
+  `endpoints.yaml`.
+- **Fan-out** (seed a single agent with it): a specific `<ctx>.yaml` detail shard.
 
 ## Notes
-
-- A `functional_stale: true` field in a shard means the inferred meaning may be outdated →
-  suggest `/thunder-java:thunder-java-reindex`.
-- If `purpose` is `null`, the functional layer has not been inferred yet → `/thunder-java:thunder-java-reindex`.
-- For a precise symbol (definition/references), prefer `/thunder-java:thunder-java-sym`.
+- `functional_stale: true` or `purpose: null` → suggest `/thunder-java:thunder-java-reindex`.
+- For a precise symbol (definition/references): `/thunder-java:thunder-java-sym`.

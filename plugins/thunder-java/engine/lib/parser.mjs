@@ -55,6 +55,26 @@ function paramType(p) {
   return toks.length <= 1 ? s : toks.slice(0, -1).join(' ');
 }
 
+/** Find the matching ')' for an open paren at (li, parenCol), scanning across cleaned lines. */
+function captureParensSpan(lines, li, parenCol) {
+  let depth = 0;
+  for (let k = li; k < lines.length; k++) {
+    const line = lines[k];
+    for (let c = (k === li ? parenCol : 0); c < line.length; c++) {
+      if (line[c] === '(') depth++;
+      else if (line[c] === ')') { depth--; if (depth === 0) return { endLine: k, endCol: c }; }
+    }
+  }
+  return { endLine: lines.length - 1, endCol: 0 };
+}
+
+function sliceLines(lines, sl, sc, el, ec) {
+  if (sl === el) return lines[sl].slice(sc, ec);
+  let s = lines[sl].slice(sc) + ' ';
+  for (let k = sl + 1; k < el; k++) s += lines[k] + ' ';
+  return s + lines[el].slice(0, ec);
+}
+
 function detectMember(rest, typeName) {
   if (rest.includes('(')) {
     const m = rest.match(/(\w+)\s*\(([^)]*)\)/);
@@ -121,7 +141,20 @@ export function parseFile(raw, relPath) {
       consumed = true;
     } else if (stack.length && depth === stack[stack.length - 1].bodyDepth) {
       const top = stack[stack.length - 1].type;
-      const member = detectMember(rest, top.name);
+      // multi-line method signature: capture params across lines so the method (and its
+      // @PostMapping/@GetMapping endpoint) is not missed when the `)` is on a later line.
+      let rest2 = rest;
+      const openIdx = stripped.indexOf('(');
+      if (openIdx >= 0) {
+        let bal = 0;
+        for (const ch of stripped) { if (ch === '(') bal++; else if (ch === ')') bal--; }
+        if (bal > 0) {
+          const span = captureParensSpan(cleanLines, li, openIdx);
+          const params = sliceLines(cleanLines, li, openIdx + 1, span.endLine, span.endCol).replace(/\s+/g, ' ').trim();
+          rest2 = (stripped.slice(0, openIdx) + '(' + params + ')').trim();
+        }
+      }
+      const member = detectMember(rest2, top.name);
       if (member) {
         member.ann = pending.slice();
         member.line = li + 1;

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, rmSync, readFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from './lib/build.mjs';
@@ -12,30 +12,52 @@ import {
 
 // ---- commands -------------------------------------------------------------
 
-/** Deterministic retrieval: one payload = cards of matching contexts + matching endpoints. */
-function cmdAsk(root, query) {
-  if (!query) { console.error('usage: ask "<keywords>" <root>'); process.exit(1); }
+/**
+ * Deterministic, self-sufficient retrieval (INLINE — no sub-agent). One payload:
+ * ranked top-N context cards + the #1 hit enriched (business_rules + flows) + matching endpoints.
+ * Answer from this directly; do NOT also load index.yaml or individual card files.
+ */
+function cmdAsk(root, query, top = 3) {
+  if (!query) { console.error('usage: ask "<keywords>" [--top N] <root>'); process.exit(1); }
   const { model, functional } = build(root);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const hit = (s) => terms.some((t) => (s || '').toLowerCase().includes(t));
-  const cards = [];
+  const scored = [];
   for (const c of model.contexts) {
     const f = functional[c.id] || {};
-    const hay = [c.id, f.name || c.name, f.purpose || '', ...(f.capabilities || []), ...c.types.map((t) => t.n), ...c.endpoints.map((e) => e.path)].join(' ');
-    if (!hit(hay)) continue;
-    cards.push({
-      id: c.id, name: f.name || c.name, purpose: f.purpose || null,
-      ...(f.capabilities ? { capabilities: f.capabilities } : {}),
-      types: c.types.map((t) => t.n),
-      endpoints: c.endpoints.map((e) => `${e.verb} ${e.path}`),
-      beans: Object.keys(c.beans).length, entities: Object.keys(c.entities).length,
-      detail: `modules/${c.module}/${c.packages.join(',')}.yaml`,
-    });
+    const hay = [c.id, f.name || c.name, f.purpose || '', ...(f.capabilities || []), ...c.types.map((t) => t.n), ...c.endpoints.map((e) => e.path)].join(' ').toLowerCase();
+    let score = 0;
+    for (const t of terms) if (hay.includes(t)) score++;
+    if (score) scored.push({ c, f, score });
   }
+  scored.sort((a, b) => b.score - a.score || a.c.id.localeCompare(b.c.id));
+  const sel = scored.slice(0, top);
+  const cards = sel.map(({ c, f, score }, i) => ({
+    score, id: c.id, name: f.name || c.name, purpose: f.purpose || null,
+    ...(f.capabilities ? { capabilities: f.capabilities } : {}),
+    types: c.types.map((t) => t.n),
+    endpoints: c.endpoints.map((e) => `${e.verb} ${e.path}`),
+    beans: Object.keys(c.beans).length, entities: Object.keys(c.entities).length,
+    // enrich the #1 hit so the question is answerable WITHOUT a follow-up read
+    ...(i === 0 && f.business_rules ? { business_rules: f.business_rules } : {}),
+    ...(i === 0 ? { flows: c.endpoints.map((e) => e.flow).filter(Boolean) } : {}),
+    detail: `modules/${c.module}/${c.packages.join(',')}.yaml`,
+  }));
+  // endpoints of the SHOWN contexts only — keeps the payload bounded at scale (no global dump)
+  const shownIds = new Set(sel.map((s) => s.c.id));
   const endpoints = model.endpoints
-    .filter((e) => hit(`${e.verb} ${e.path} ${e.fn} ${e.req || ''} ${e.resp || ''}`))
+    .filter((e) => shownIds.has(e.ctx))
     .map((e) => ({ verb: e.verb, path: e.path, fn: e.fn, ...(e.req ? { req: e.req } : {}), ...(e.resp ? { resp: e.resp } : {}) }));
-  console.log(dump({ query, matched_contexts: cards.length, cards, endpoints }));
+  console.log(dump({ query, matched: scored.length, shown: cards.length, cards, endpoints }));
+}
+
+/** `ask --detail <id>`: print the detail shard directly (avoids a separate locate call). */
+function cmdAskDetail(root, ctxId) {
+  if (!ctxId) { console.error('usage: ask --detail <ctxId> <root>'); process.exit(1); }
+  build(root);
+  const [mod, pkg] = ctxId.split('/');
+  const p = join(root, '.claude', 'cache', 'thunder-java', 'modules', mod || '', (pkg || '') + '.yaml');
+  try { process.stdout.write(readFileSync(p, 'utf8')); }
+  catch { console.error(`no detail shard for ${ctxId}`); process.exit(1); }
 }
 
 function cmdBuild(root) {
@@ -221,7 +243,8 @@ async function selftest() {
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--')));
-const pos = argv.filter((a) => !a.startsWith('--'));
+const VALUE_FLAGS = new Set(['--root', '--top']); // their following token is a value, not a positional
+const pos = argv.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.has(argv[i - 1]));
 const cmd = pos[0] || 'build';
 const rootArg = (() => {
   const i = argv.indexOf('--root');
@@ -250,7 +273,10 @@ if (flags.has('--selftest')) {
     case 'evidence': cmdEvidence(R(pos[2]), pos[1]); break;        // evidence <ctxId> [root]
     case 'set-functional': cmdSetFunctional(R(pos[2]), pos[1]); break; // set-functional <ctxId> [root]
     case 'sym': cmdSym(R(pos[3]), pos[1], pos[2]); break;          // sym <def|refs> <Name> [root]
-    case 'ask': cmdAsk(R(pos[2]), pos[1]); break;                 // ask "<keywords>" [root]
+    case 'ask':                                                    // ask "<keywords>" [--top N] [root]  |  ask --detail <id> [root]
+      if (flags.has('--detail')) cmdAskDetail(R(pos[2]), pos[1]);
+      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : 3; })());
+      break;
     default: console.error(`unknown command: ${cmd}`); process.exit(1);
   }
 }

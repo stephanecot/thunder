@@ -1,67 +1,60 @@
 #!/usr/bin/env node
-// Reproducible token eval: for a fixed set of questions, measure bytes/tokens READ to answer
-// in 3 modes — card-only (tier-1), full-shard (tier-2), raw-java — and prove the card target.
+// ROUND 2 eval: measure the MAIN-LOOP context growth (tokens) to reach a correct answer, in 3 paths:
+//   (A) thunder INLINE  — project-brief / `ask` / endpoints.yaml, NO sub-agent  ← target
+//   (B) raw INLINE      — grep + read .java in the main loop
+//   (C) thunder + FAN-OUT — one sub-agent (~11k fixed overhead) + a seeded shard  (the anti-pattern)
 // Usage: node engine/tools/token-bench.mjs [root]   (default: demo)
-import { statSync, readdirSync } from 'node:fs';
+import { statSync, readFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { build } from '../lib/build.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
+const ENGINE = join(here, '..', 'thunder.mjs');
+const ANALYZE = join(here, 'analyze.mjs');
 const root = process.argv[2] || join(here, '..', '..', 'demo');
 const C = join(root, '.claude', 'cache', 'thunder-java');
+const SUBAGENT = 11000; // measured fixed cost of spawning one Explore/Task agent (round-1 finding)
 
-const sz = (f) => { try { return statSync(f).size; } catch { return 0; } };
-const bytes = (files) => files.reduce((a, f) => a + sz(f), 0);
 const tok = (b) => Math.round(b / 4);
+const fileTok = (...fs) => tok(fs.reduce((a, f) => { try { return a + statSync(f).size; } catch { return a; } }, 0));
+const askTok = (q, ...extra) => tok(Buffer.byteLength(execFileSync('node', [ENGINE, 'ask', q, ...extra, root], { maxBuffer: 1 << 24 })));
+const analyzeTok = () => tok(Buffer.byteLength(execFileSync('node', [ANALYZE, root], { maxBuffer: 1 << 24 })));
 
-function javaUnder(dir) {
-  const out = [];
-  const rec = (d) => {
-    let es; try { es = readdirSync(d, { withFileTypes: true }); } catch { return; }
-    for (const e of es) {
-      const p = join(d, e.name);
-      if (e.isDirectory()) { if (e.name !== 'target') rec(p); }
-      else if (e.name.endsWith('.java')) out.push(p);
-    }
-  };
-  rec(dir);
-  return out;
-}
+const { model } = build(root);
+const ctxs = [...model.contexts].sort((a, b) => b.endpoints.length - a.endpoints.length);
+const sample = ctxs.find((c) => c.endpoints.length && Object.keys(c.beans).length) || ctxs[0];
+const abs = (rel) => join(root, rel);
+const shard = (c) => join(C, 'modules', c.module, c.packages.join(',') + '.yaml');
+const allJava = model.contexts.flatMap((c) => c.files.map(abs));
+const controllers = allJava.filter((p) => p.endsWith('Controller.java'));
+const name = sample.name.split(/[/.]/).pop();
 
-const card = (m, c) => join(C, 'modules', m, c + '.card.yaml');
-const shard = (m, c) => join(C, 'modules', m, c + '.yaml');
-const userJava = javaUnder(join(root, 'user', 'src', 'main', 'java', 'com', 'demo', 'user'));
-const orderJava = javaUnder(join(root, 'order', 'src', 'main', 'java', 'com', 'demo', 'order'));
-const f = (n) => userJava.find((p) => p.endsWith(n));
-
-const UC = ['user', 'com.demo.user'];
-const OC = ['order', 'com.demo.order'];
-
-const questions = [
-  { kind: 'structure', q: 'Quels types compose le contexte user ?', cardAnswerable: true,
-    cardF: [card(...UC)], fullF: [shard(...UC)], rawF: userJava },
-  { kind: 'endpoint', q: 'Quels endpoints expose le contexte user ?', cardAnswerable: true,
-    cardF: [join(C, 'endpoints.yaml')], fullF: [shard(...UC)], rawF: [f('UserController.java')] },
-  { kind: 'where', q: 'Où est UserService et qui en dépend ?', cardAnswerable: true,
-    cardF: [card(...UC)], fullF: [shard(...UC)], rawF: [f('UserService.java'), f('UserController.java')] },
-  { kind: 'flux', q: 'Quel est le flux de création d’un user ?', cardAnswerable: true,
-    cardF: [card(...UC)], fullF: [shard(...UC)], rawF: [f('UserController.java'), f('UserService.java'), f('UserRepository.java')] },
-  { kind: 'securite', q: 'Quels endpoints renvoient une entité (fuite) ?', cardAnswerable: true,
-    cardF: [join(C, 'endpoints.yaml')], fullF: [shard(...UC), shard(...OC)], rawF: [...userJava, ...orderJava].filter((p) => p.endsWith('Controller.java')) },
-  { kind: 'regle-metier', q: 'Quelle règle métier à l’inscription ?', cardAnswerable: false,
-    cardF: [card(...UC), shard(...UC)], fullF: [shard(...UC)], rawF: [f('UserService.java'), f('UserDto.java'), f('User.java')] },
+const Q = [
+  { kind: 'archi', struct: true, A: () => fileTok(join(C, 'project-brief.yaml')), B: () => fileTok(...allJava), Cc: () => SUBAGENT + fileTok(shard(sample)) },
+  { kind: 'flux', struct: true, A: () => askTok(`${name} create flow`), B: () => fileTok(...sample.files.map(abs)), Cc: () => SUBAGENT + fileTok(shard(sample)) },
+  { kind: 'regle', struct: false, A: () => askTok(`${name} validation rule`), B: () => fileTok(...sample.files.map(abs)), Cc: () => SUBAGENT + fileTok(shard(sample)) },
+  { kind: 'securite', struct: true, A: () => analyzeTok(), B: () => fileTok(...controllers), Cc: () => SUBAGENT + fileTok(shard(sample)) },
+  { kind: 'persistance', struct: false, A: () => askTok(`${name} entity relation`) + fileTok(shard(sample)), B: () => fileTok(...sample.files.map(abs)), Cc: () => SUBAGENT + fileTok(shard(sample)) },
+  { kind: 'endpoint', struct: true, A: () => askTok(name), B: () => fileTok(...controllers), Cc: () => SUBAGENT + fileTok(shard(sample)) },
 ];
 
-let cardSumA = 0, fullSumA = 0;
-console.log('| Question | type | card-only | full-shard | raw-java | card/full |');
+if (!existsSync(join(C, 'project-brief.yaml'))) { console.error('build the index first'); process.exit(1); }
+
+console.log(`# token-bench (root=${root}, sample context=${sample.id})\n`);
+console.log('| Question | (A) thunder inline | (B) raw inline | (C) +sub-agent | A/B | A/C |');
 console.log('|---|---|---|---|---|---|');
-for (const it of questions) {
-  const c = tok(bytes(it.cardF)), fu = tok(bytes(it.fullF)), r = tok(bytes(it.rawF));
-  const ratio = fu ? Math.round((c / fu) * 100) : 0;
-  if (it.cardAnswerable) { cardSumA += c; fullSumA += fu; }
-  const note = it.cardAnswerable ? `${ratio}%` : `${ratio}% (escalade détail)`;
-  console.log(`| ${it.q} | ${it.kind} | ${c} | ${fu} | ${r} | ${note} |`);
+let aStruct = 0, bStruct = 0, aAll = 0, cAll = 0, inlineOk = 0;
+for (const q of Q) {
+  const a = q.A(), b = q.B(), c = q.Cc();
+  if (q.struct) { aStruct += a; bStruct += b; }
+  aAll += a; cAll += c; inlineOk += 1; // every question is answered in mode A (no sub-agent)
+  console.log(`| ${q.kind} | ${a} | ${b} | ${c} | ${Math.round((a / b) * 100)}% | ${Math.round((a / c) * 100)}% |`);
 }
-const overall = fullSumA ? Math.round((cardSumA / fullSumA) * 100) : 0;
-console.log(`\nMode carte sur questions structure/where/what/endpoint/flux/sécu : ${cardSumA} tok vs full ${fullSumA} tok → **${overall}%** du full-shard (cible ≤ 40%).`);
-process.exit(overall <= 40 ? 0 : 1);
+const abRatio = Math.round((aStruct / bStruct) * 100);
+const acRatio = Math.round((aAll / cAll) * 100);
+console.log(`\n(A) vs (B) on structure/where/what/flux/endpoint: ${aStruct} vs ${bStruct} tok → **${abRatio}%** (target ≤ 25%).`);
+console.log(`(A) vs (C) overall: ${aAll} vs ${cAll} tok → **${acRatio}%** (target ≤ 15%).`);
+console.log(`Questions answered in mode (A) without any sub-agent: **${inlineOk}/6** (target ≥ 5/6).`);
+process.exit(abRatio <= 25 && acRatio <= 15 && inlineOk >= 5 ? 0 : 1);

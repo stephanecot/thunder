@@ -63,3 +63,96 @@ sur les questions structure/where/what. Documente le résultat dans `BENCHMARK.m
 
 Quand c'est fait, donne-moi : le tableau token-bench avant/après, la liste des fichiers
 touchés, et la commande exacte pour relancer l'eval.
+
+---
+
+# ROUND 2 (révisé) — la vraie cible : maximiser les réponses INLINE
+
+## Ce que la mesure du round 1 a prouvé (lis-le, c'est le cœur du sujet)
+Le tiering (cards) a réduit les OCTETS d'index (−21 % shards, −14 % lignes lues) MAIS le
+coût total en tokens par requête n'a PAS bougé. Raison, mesurée :
+
+> **Chaque sous-agent (Explore/Task) coûte ~11k tokens FIXES, quoi qu'il lise.**
+> Preuve : la requête la plus légère a lu 137 lignes (~1,5k tokens de contenu) et a coûté
+> 13,1k tokens au total. Les octets d'index sont du bruit face à cet overhead.
+
+Conséquence : **le coût d'une requête est dominé par le fait de spawner ou non un agent,
+PAS par le format de l'index.** Le seul vrai gain de thunder existe quand la **boucle
+principale répond inline** depuis un petit index, sans dragger ni source ni sous-agent.
+
+Modèle de coût cible (croissance du contexte principal pour « tracer la création d'un tag ») :
+| Chemin | tokens tirés dans le contexte |
+|---|---|
+| Thunder inline (1 `ask`, top-3) | ~600 |
+| Raw inline (grep + 4-5 `.java`) | ~4 000–6 000 |
+| Thunder AVEC sous-agent (anti-pattern) | ~13 000 |
+
+=> Optimiser = **maximiser la fraction de questions répondues en régime inline**, et rendre
+le payload inline minimal-mais-suffisant. Tout le reste est secondaire.
+
+## R2.1 — [P0] Skill : répondre INLINE par défaut, budget sous-agent = 0
+Dans `skills/thunder-java-grok/SKILL.md` ET `codemap/SKILL.md` :
+- Règle n°1, en tête : **« Réponds depuis l'index dans la boucle principale. Ne spawne
+  AUCUN sous-agent pour une question de structure / where / what / quel endpoint / quel flux /
+  quelle règle métier. »**
+- Fan-out (Task/Explore) autorisé UNIQUEMENT pour lire un *corps de méthode* réel `.java`,
+  et alors : 1 agent max, ensemencé avec les `file:line` exacts tirés de l'index.
+- Donne un exemple résolu de bout en bout SANS Task (1 `ask` → réponse citée).
+- Rappelle le tradeoff explicitement : un sous-agent garde le contexte propre mais coûte
+  ~11k ; inline coûte ~1k. Pour le coût tokens, inline gagne ~8×. Défaut = inline.
+
+## R2.2 — [P0] Artefact « project-brief » : 1 lecture répond à ~70 % des questions
+Génère à l'indexation (gratuit, depuis cartes + rollups, AUCUNE inférence LLM) un fichier
+`project-brief.yaml` (cible ≤ 800 tokens) à la racine du cache, contenant :
+- modules + rôle d'une ligne + style d'archi (hexagonal détecté),
+- règles transverses clés (ex. unicité des codes, profils sécurité) si présentes dans les
+  business_rules déjà inférées,
+- la liste complète des endpoints (verbe + path + controller),
+- pointeurs vers cartes/détail pour aller plus loin.
+But : pour une question d'archi/onboarding/overview, la boucle principale lit CE SEUL fichier
+et répond. Les deux SKILLs doivent en faire le 1er réflexe avant tout `ask`/card.
+
+## R2.3 — [P1] `ask` = réponse suffisante en UN coup (point d'entrée unique)
+Constat : `ask "tag creation validation"` a matché 13 contextes / 25 et dumpé ~150 lignes.
+- Ranking par score, **top-3 par défaut** (`--top N` pour élargir), score affiché.
+- Payload assez riche pour répondre **sans lecture de suivi** (carte + business_rules /
+  signatures pertinentes du hit n°1). Vise un `ask` ≈ 300–800 tokens, auto-suffisant.
+- Mets à jour les SKILLs pour **interdire le combo** `index.yaml` + `ask` + cartes
+  individuelles (mesuré : les agents lisaient les trois → gaspillage).
+- Ajoute `ask --detail <id>` qui renvoie directement le shard détail (évite un 2e tool-call
+  de localisation quand le détail est vraiment nécessaire).
+
+## R2.4 — [P1] Pour l'inline, consolider > sharder
+Le sharding fin sert le fan-out (ensemencer 1 shard). La boucle principale, elle, préfère
+**peu de gros fichiers curatés** (moins de Read, moins de décisions) : `project-brief.yaml`,
+`capability-map.yaml` (grepable), `endpoints.yaml`. Garde les deux familles d'artefacts mais
+documente leur usage : brief/map/endpoints = inline ; cards/shards = fan-out ciblé.
+
+## R2.5 — [P2] Corriger endpoints (bug non résolu au round 1)
+`endpoints.yaml` ne liste toujours que 2 endpoints ; `TagController` (POST /api/v1/tags,
+DELETE, GET paginé) est ABSENT. Diagnostique `derive.mjs:106-113` (captation des
+`@PostMapping`/`@DeleteMapping`/`@GetMapping` au niveau méthode). Corrige + test asserant que
+les endpoints de TagController apparaissent. (Sans ça, R2.2/R2.3 répondent faux aux questions
+endpoints.)
+
+## Acceptance criteria (RE-mesurer correctement)
+Le bench du round 1 mesurait les octets lus — trompeur. Le nouveau `tools/token-bench.mjs`
+doit mesurer la **croissance du contexte de la boucle principale** (tokens) pour atteindre une
+réponse juste, sur les 6 questions (1 archi, 1 flux, 1 règle, 1 sécurité, 1 persistance,
+1 endpoint), dans 3 chemins :
+  (A) **thunder inline** (brief/`ask`, 0 sous-agent) ← le mode cible
+  (B) **raw inline** (grep + lecture `.java` dans la boucle principale)
+  (C) thunder avec fan-out (pour chiffrer l'anti-pattern)
+Cibles, à justesse égale :
+- (A) ≤ **25 %** de (B) sur les questions structure/where/what/flux/endpoint,
+- (A) ≤ **15 %** de (C) (montre que spawner un agent est l'erreur, pas l'index),
+- ≥ **5 des 6** questions répondues en mode (A) **sans aucun sous-agent**.
+Documente A/B/C dans `BENCHMARK.md`. C'est CE tableau qui valide l'optimisation, pas la
+taille du YAML.
+
+## Garde-fous (inchangés)
+- Rétro-compat : `<ctx>.yaml` et `*.card.yaml` continuent d'exister.
+- Ne touche ni aux hashes d'evidence, ni au cycle stale/reindex, ni à l'inférence cartographer.
+- `node --test engine/test/` vert + nouveaux tests (project-brief, `ask` top-k, endpoints).
+
+Quand c'est fait, donne-moi le tableau A/B/C, les fichiers touchés, et la commande de relance.

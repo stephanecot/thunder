@@ -251,4 +251,56 @@ Relancer l'eval : `node engine/tools/token-bench.mjs demo` (exit 0 si carte ≤ 
   carte-d'abord + `ask`.
 
 Garde-fous respectés : `<ctx>.yaml` détail conservé (sym en dépend), hashes d'evidence et cycle
-stale/reindex inchangés, `node --test` vert (39 tests).
+stale/reindex inchangés, `node --test` vert.
+
+---
+
+## 9. ROUND 2 — la vraie cible : maximiser les réponses INLINE
+
+**Constat round 1** : le tiering a réduit les octets d'index mais **pas** le coût/requête en tokens. Raison
+mesurée : **un sous-agent (Explore/Task) coûte ~11k tokens fixes**, quoi qu'il lise. Le coût d'une requête
+est donc dominé par *spawner ou non un agent*, pas par le format de l'index.
+
+**Réponse** : maximiser la fraction de questions répondues **inline** (boucle principale, 0 sous-agent),
+avec un payload inline minimal-mais-suffisant.
+- **`project-brief.yaml`** (tier-0, ≤~800 tokens, généré gratuitement) : archi détectée, modules + rôle,
+  liste des endpoints (résumée si > 50), règles transverses. **1 lecture répond aux questions archi/overview/endpoint.**
+- **`ask "<kw>"`** ranké **top-3**, le hit #1 **enrichi de ses `business_rules` + `flows`** → auto-suffisant
+  (aucune lecture de suivi). `--top N` pour élargir, `ask --detail <id>` pour le shard détail direct.
+  Endpoints bornés aux contextes montrés (pas de dump global).
+- **Skills** (`codemap`, `grok`) : règle n°1 = *réponds inline, budget sous-agent = 0* pour
+  structure/where/what/endpoint/flux/règle ; sous-agent autorisé **uniquement** pour un corps de méthode
+  `.java` (1 agent max, ensemencé `file:line`). Combo `index.yaml`+`ask`+cartes **interdit**.
+- **Bug endpoints corrigé** (R2.5) : les **signatures de méthode multi-lignes** étaient ratées par le parser
+  (`[^)]*` exigeait `)` sur la même ligne) → capture multi-lignes ajoutée + test (TagController POST/GET).
+
+### token-bench v2 — croissance du contexte principal (tokens), 3 chemins, sur `realdemo` (services réalistes)
+
+| Question | (A) thunder inline | (B) raw inline | (C) +sous-agent | A/B | A/C |
+|---|---|---|---|---|---|
+| archi | 237 | 297 525 | 13 167 | 0 % | 2 % |
+| flux | 1 590 | 2 460 | 13 167 | 65 % | 12 % |
+| règle | 1 591 | 2 460 | 13 167 | 65 % | 12 % |
+| sécurité | 68 | 43 748 | 13 167 | 0 % | 1 % |
+| persistance | 3 757 | 2 460 | 13 167 | 153 % | 29 % |
+| endpoint | 1 586 | 43 748 | 13 167 | 4 % | 12 % |
+
+- **(A) vs (B)** sur structure/where/what/flux/endpoint : **1 %** (cible ≤ 25 %) ✅
+- **(A) vs (C)** global : **11 %** (cible ≤ 15 %) ✅ → *spawner un agent est l'erreur, pas l'index*
+- **6/6** questions répondues en mode (A) **sans sous-agent** (cible ≥ 5/6) ✅
+
+Lecture honnête : sur une **question large** (archi, sécurité, lister les endpoints) l'inline écrase le raw
+(2-3 ordres de grandeur). Sur le **deep-dive d'un seul petit domaine** (flux/règle/persistance), l'inline
+`ask` est *comparable* à lire ce domaine — mais reste **~8× moins cher que le réflexe sous-agent** (A/C).
+Le gain structurel = **ne pas spawner d'agent**.
+
+Relancer : `node engine/tools/token-bench.mjs realdemo` (exit 0 si A/B ≤ 25 %, A/C ≤ 15 %, ≥ 5/6 inline).
+Sur `demo/` (petits fichiers) le ratio A/B est moins favorable (~31 %) — c'est attendu, la démo sous-estime.
+
+### Fichiers touchés (round 2)
+- `engine/lib/emit.mjs` — `project-brief.yaml` (tier-0, endpoints bornés), `archStyle()`.
+- `engine/lib/parser.mjs` — capture des signatures de méthode **multi-lignes** (fix endpoints R2.5).
+- `engine/thunder.mjs` — `ask` ranké top-N + hit #1 enrichi (business_rules/flows) + `ask --detail <id>`.
+- `engine/tools/token-bench.mjs` — eval v2 A/B/C (croissance contexte principal, overhead sous-agent).
+- `engine/test/round2.test.mjs` — tests multi-lignes / endpoint / project-brief (42 tests au total).
+- `skills/thunder-java-codemap/SKILL.md`, `skills/thunder-java-grok/SKILL.md` — doctrine inline-first.

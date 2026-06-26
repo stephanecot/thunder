@@ -1,44 +1,59 @@
 ---
 name: thunder-java-grok
-description: Answer a question about what a Java/Spring codebase does or how it works (business or technical), token-minimally, using thunder's index and bounded fan-out. Use for "how does the auth work", "where is X handled", "what does the billing module do", "trace the flow of Y". Seeds sub-agents with index slices so they don't re-explore from scratch.
+description: Answer a question about what a Java/Spring codebase does or how it works (business or technical), token-minimally, by answering INLINE from thunder's index. Use for "how does the auth work", "where is X handled", "what does the billing module do", "which endpoints exist", "trace the flow of Y", "what's the rule on Z".
 allowed-tools: Read, Grep, Bash, Task
 ---
 
-# grok — answer a question about the codebase
+# grok — answer a question about the codebase, INLINE
 
-Goal: answer **correctly** with the **fewest tokens**. Start from the index (compact, already built), read
-source only when needed, and delegate broad exploration to sub-agents **seeded** with the relevant index
-slice (so they don't re-explore from scratch).
+## Rule #1 — answer inline, sub-agent budget = 0
+**Answer from the index in the main loop. Do NOT spawn ANY sub-agent (Task/Explore) for a question about
+structure / where / what / which endpoint / which flow / which business rule.** Those are answered by
+reading one or two small index files here, in the main loop.
+
+> Why: a sub-agent costs ~**11k tokens of fixed overhead**, whatever it reads. Answering inline from the
+> index costs ~**1k**. For token cost, inline wins ~8×. The index format barely matters next to this —
+> **not spawning an agent is the optimization.** Default = inline.
+
+A sub-agent (Task/Explore) is allowed **only** to read a real `.java` **method body** the index can't give
+you, and then: **1 agent max**, seeded with the exact `file:line` taken from the index (never "go explore").
 
 ```bash
 ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${CLAUDE_PROJECT_DIR}"
 ```
 
-## Procedure
+## Procedure (all inline)
 
-1. **Deterministic one-payload retrieval (default step)**:
-   `node "$ENG" ask "<keywords from the question>" "$ROOT"` → returns the **cards** of matching contexts
-   (name, purpose, capabilities, types, endpoints) + relevant endpoints. **One call.** For a structure /
-   where / what / endpoint / flow question, **this is enough — answer from it.**
-   (Manual alternative: `Grep` `capability-map.yaml`, then `Read` the targeted `<ctx>.card.yaml`.)
+1. **Architecture / overview / "what does the app do" / list endpoints** → read **one** file:
+   `Read .claude/cache/thunder-java/project-brief.yaml` (arch style, modules + roles, all endpoints, key
+   rules). Answer from it. **Do not also read `index.yaml` or cards.**
 
-2. **Detail only if the card is not enough** (precise business rule, exact validation, full signature,
-   field annotation): `Read .../modules/<m>/<pkg>.yaml` (path is in the card's `detail` field). Open **one**
-   detail shard at a time, only for the relevant context.
+2. **A specific feature / where / flow / rule** → **one** command:
+   `node "$ENG" ask "<keywords from the question>" "$ROOT"`
+   It returns the ranked top-3 context cards; the **#1 hit is enriched with its `business_rules` and
+   `flows`**, so the question is answerable **from this single payload**. **Do NOT also load `index.yaml`,
+   `capability-map.yaml`, or individual `.card.yaml` files** — that combo is pure waste.
+   - Need more hits: `ask "<kw>" --top 6 "$ROOT"`.
+   - Need the full detail of one context (precise signatures, field annotations, all use-cases):
+     `node "$ENG" ask --detail <id> "$ROOT"` (one call, prints the detail shard).
 
-3. **Only if real code is needed** (a method body, precise logic):
-   - Delegate to `Explore` sub-agents (Task), **capped ~3-4 in parallel**, each given the relevant shard +
-     exact `file:line` to inspect. They return a short conclusion, not dumps. Their context is discarded →
-     the main context stays clean.
-   - To locate a symbol before delegating: `node "$ENG" sym def <Name> "$ROOT"`.
+3. **Only if a real method body is required** (precise runtime logic not in the index): `sym def <Name>` to
+   get `file:line`, then **at most one** `Explore` sub-agent seeded with that `file:line`. This is the only
+   case where spawning is justified — and it still costs ~11k, so avoid it unless truly necessary.
 
-4. **Synthesize**: answer with `file:line` citations. Separate what is **exact** (technical, from the index)
-   from what is **inferred** (functional layer, marked inferred).
+4. **Synthesize** with `file:line` citations. Separate **exact** (technical, from the index) from
+   **inferred** (functional layer).
 
-## Token guards
+## Worked example (no Task, ~1 payload)
 
-- Never read a whole module of `.java`. Always prefer card → detail → targeted fan-out.
-- Fan-out spends tokens in sub-agents: cap it, and only when the index is insufficient. A pure structure
-  question is answered by the index alone.
-- If the functional layer is missing (`purpose: null`) or `functional_stale`, suggest
-  `/thunder-java:thunder-java-reindex` before answering a clearly business-level question.
+> Q: "How is a user registered and what are the rules?"
+> `ask "register user" "$ROOT"` → #1 hit `user/com.demo.user` returns purpose, capabilities, the
+> `business_rules` (email unique, @Min(18)…, with `src` citations) and the `flows`
+> (`POST /users → UserController.create → UserService → UserRepository`). Answer directly, cite the `src`.
+> **No sub-agent, no extra Read.**
+
+## Guards
+- Inline is the default. Reach for a sub-agent only for a method body, 1 max, seeded by `file:line`.
+- Inline artifacts (read directly): `project-brief.yaml`, `ask` output, `capability-map.yaml` (grep),
+  `endpoints.yaml`. Fan-out artifacts (seed a single agent): a specific `.yaml` detail shard.
+- If `purpose: null` / `functional_stale`, suggest `/thunder-java:thunder-java-reindex` first.
