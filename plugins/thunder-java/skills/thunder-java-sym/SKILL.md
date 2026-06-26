@@ -1,5 +1,5 @@
 ---
-name: sym
+name: thunder-java-sym
 description: Precisely locate a Java symbol (class, interface, method) — its definition or its references/usages — from thunder's index, without reading source files. Use when the user asks "where is X defined", "who uses/calls X", "find the X class/method".
 allowed-tools: Bash, Read
 ---

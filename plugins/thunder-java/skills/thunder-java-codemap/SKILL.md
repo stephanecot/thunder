@@ -1,5 +1,5 @@
 ---
-name: codemap
+name: thunder-java-codemap
 description: Explore and understand a Java/Spring Boot codebase token-minimally via thunder's pre-built YAML index (modules, contexts, endpoints, beans, JPA entities, business meaning). Use whenever the user asks how the app is structured, where something lives, what endpoints/services/entities exist, or what a module does — instead of reading .java files.
 allowed-tools: Read, Bash, Grep
 ---
@@ -40,6 +40,6 @@ soit la taille du repo.
 ## Notes
 
 - Un champ `functional_stale: true` dans un shard signale que le métier inféré peut être périmé →
-  propose `/thunder-java:reindex`.
-- Si `purpose` est `null`, la couche fonctionnelle n'a pas encore été inférée → `/thunder-java:reindex`.
-- Pour un symbole précis (définition/références), utilise plutôt `/thunder-java:sym`.
+  propose `/thunder-java:thunder-java-reindex`.
+- Si `purpose` est `null`, la couche fonctionnelle n'a pas encore été inférée → `/thunder-java:thunder-java-reindex`.
+- Pour un symbole précis (définition/références), utilise plutôt `/thunder-java:thunder-java-sym`.

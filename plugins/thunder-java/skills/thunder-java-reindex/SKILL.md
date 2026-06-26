@@ -1,5 +1,5 @@
 ---
-name: reindex
+name: thunder-java-reindex
 description: Rebuild or refresh thunder's index of a Java/Spring project. Refreshes the technical layer (free, instant) and re-infers the FUNCTIONAL/business layer for stale contexts via the thunder-java-cartographer agent (costs tokens — budgeted and confirmed). Use when the user asks to (re)index, refresh the codemap, or after a large refactor. Args: empty = incremental, --full = rebuild everything, --tech = technical only.
 allowed-tools: Bash, Task, AskUserQuestion
 ---
