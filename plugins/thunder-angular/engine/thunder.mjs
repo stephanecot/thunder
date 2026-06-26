@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, rmSync, readFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from './lib/build.mjs';
@@ -103,28 +103,47 @@ async function cmdSetModuleFunctional(root, name) {
   console.log(`thunder-angular: project theme updated for ${name}${entry.theme ? ` ("${entry.theme}")` : ''}`);
 }
 
-/** Deterministic retrieval: one payload = cards of matching feature contexts + matching routes. */
-function cmdAsk(root, query) {
-  if (!query) { console.error('usage: ask "<keywords>" <root>'); process.exit(1); }
+/**
+ * Deterministic, self-sufficient retrieval (INLINE — no sub-agent). One payload:
+ * ranked top-N feature cards + the #1 hit enriched (business_rules + route flows) + routes of shown contexts.
+ */
+function cmdAsk(root, query, top = 3) {
+  if (!query) { console.error('usage: ask "<keywords>" [--top N] <root>'); process.exit(1); }
   const { model, functional } = build(root);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const hit = (s) => terms.some((t) => (s || '').toLowerCase().includes(t));
-  const cards = [];
+  const scored = [];
   for (const c of model.contexts) {
     const f = functional[c.id] || {};
-    const hay = [c.id, f.name || c.name, f.purpose || '', ...(f.capabilities || []), ...c.components.map((cp) => cp.n), ...Object.keys(c.services), ...c.routes.map((r) => r.path)].join(' ');
-    if (!hit(hay)) continue;
-    cards.push({
-      id: c.id, name: f.name || c.name, purpose: f.purpose || null,
-      ...(f.capabilities ? { capabilities: f.capabilities } : {}),
-      components: c.components.map((cp) => cp.n),
-      services: Object.keys(c.services),
-      routes: c.routes.map((r) => `${r.path || '/'} → ${r.target || r.kind}`),
-      detail: `projects/${c.project}/${c.packages.join(',')}.yaml`,
-    });
+    const hay = [c.id, f.name || c.name, f.purpose || '', ...(f.capabilities || []), ...c.components.map((cp) => cp.n), ...Object.keys(c.services), ...c.routes.map((r) => r.path)].join(' ').toLowerCase();
+    let score = 0;
+    for (const t of terms) if (hay.includes(t)) score++;
+    if (score) scored.push({ c, f, score });
   }
-  const routes = model.routes.filter((r) => hit(`${r.path} ${r.target} ${r.kind}`)).map((r) => ({ path: r.path, target: r.target, kind: r.kind }));
-  console.log(dump({ query, matched_contexts: cards.length, cards, routes }));
+  scored.sort((a, b) => b.score - a.score || a.c.id.localeCompare(b.c.id));
+  const sel = scored.slice(0, top);
+  const cards = sel.map(({ c, f, score }, i) => ({
+    score, id: c.id, name: f.name || c.name, purpose: f.purpose || null,
+    ...(f.capabilities ? { capabilities: f.capabilities } : {}),
+    components: c.components.map((cp) => cp.n),
+    services: Object.keys(c.services),
+    routes: c.routes.map((r) => `${r.path || '/'} → ${r.target || r.kind}`),
+    ...(i === 0 && f.business_rules ? { business_rules: f.business_rules } : {}),
+    ...(i === 0 ? { flows: c.routes.map((r) => r.flow).filter(Boolean) } : {}),
+    detail: `projects/${c.project}/${c.packages.join(',')}.yaml`,
+  }));
+  const shownIds = new Set(sel.map((s) => s.c.id));
+  const routes = model.routes.filter((r) => shownIds.has(r.ctx)).map((r) => ({ path: r.path, target: r.target, kind: r.kind }));
+  console.log(dump({ query, matched: scored.length, shown: cards.length, cards, routes }));
+}
+
+/** `ask --detail <id>`: print the detail shard directly. */
+function cmdAskDetail(root, ctxId) {
+  if (!ctxId) { console.error('usage: ask --detail <ctxId> <root>'); process.exit(1); }
+  build(root);
+  const [proj, feat] = ctxId.split('/');
+  const p = join(root, '.claude', 'cache', 'thunder-angular', 'projects', proj || '', (feat || '') + '.yaml');
+  try { process.stdout.write(readFileSync(p, 'utf8')); }
+  catch { console.error(`no detail shard for ${ctxId}`); process.exit(1); }
 }
 
 function cmdSym(root, sub, name) {
@@ -180,7 +199,8 @@ async function selftest() {
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--')));
-const pos = argv.filter((a) => !a.startsWith('--'));
+const VALUE_FLAGS = new Set(['--root', '--top']);
+const pos = argv.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.has(argv[i - 1]));
 const cmd = pos[0] || 'build';
 const rootArg = (() => { const i = argv.indexOf('--root'); return i >= 0 ? argv[i + 1] : null; })();
 const R = (p) => resolve(rootArg || p || process.cwd());
@@ -193,7 +213,10 @@ if (flags.has('--selftest')) {
     case 'ensure': cmdEnsure(R(pos[1])); break;
     case 'overview': cmdOverview(R(pos[1])); break;
     case 'routes': cmdRoutes(R(pos[1])); break;
-    case 'ask': cmdAsk(R(pos[2]), pos[1]); break;
+    case 'ask':
+      if (flags.has('--detail')) cmdAskDetail(R(pos[2]), pos[1]);
+      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : 3; })());
+      break;
     case 'stale': cmdStale(R(pos[1]), flags.has('--json')); break;
     case 'stale-modules': cmdStaleModules(R(pos[1]), flags.has('--json')); break;
     case 'reset-functional': cmdResetFunctional(R(pos[1])); break;

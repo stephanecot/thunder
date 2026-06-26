@@ -4,6 +4,7 @@
 # Synthetic benchmark codebases
 **/bigdemo/
 **/realdemo/
+**/ngdemo/
 
 # Maven build output
 **/target/

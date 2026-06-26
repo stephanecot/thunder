@@ -15,6 +15,39 @@ const cardRel = (ctx) => `projects/${ctx.project}/${ctx.packages.join(',')}.card
 const shardFile = (dir, ctx) => join(dir, shardRel(ctx));
 const cardFile = (dir, ctx) => join(dir, cardRel(ctx));
 
+/** Detect the broad Angular style (deterministic, no LLM). */
+function archStyle(model) {
+  let standalone = 0, ngmodule = 0;
+  for (const c of model.contexts) { for (const cp of c.components) if (cp.standalone) standalone++; ngmodule += c.modules.length; }
+  if (standalone && !ngmodule) return 'standalone components + provideRouter (modern)';
+  if (ngmodule && !standalone) return 'NgModule-based';
+  return 'mixed (standalone + NgModule)';
+}
+
+/** Tier-0 PROJECT BRIEF: one inline read for archi/overview/route questions. */
+function buildBrief(model, functional, byProject) {
+  const fmod = loadModuleFunctional(functional);
+  const projects = [...byProject.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, ctxs]) => ({
+    name,
+    role: fmod[name]?.theme || ctxs.map((c) => functional[c.id]?.purpose).filter(Boolean)[0] || null,
+    features: ctxs.length,
+    routes: ctxs.reduce((a, c) => a + c.routes.length, 0),
+  }));
+  const rules = [];
+  for (const c of model.contexts) { const f = functional[c.id]; if (f?.business_rules) for (const r of f.business_rules) { if (rules.length < 8) rules.push(typeof r === 'string' ? r : r.rule); } }
+  const rts = model.routes.map((r) => `${r.path || '/'} → ${r.target || r.kind}`);
+  const routes = rts.length <= 50 ? rts : { count: rts.length, note: 'too many to inline — grep routes.yaml or use `ask "<kw>"`' };
+  return {
+    project_brief: {
+      arch: archStyle(model),
+      projects,
+      routes,
+      ...(rules.length ? { key_rules: rules } : {}),
+      drill: 'capability-map.yaml (grep) · projects/<p>/<feature>.card.yaml (card) · .yaml (detail) · `ask "<kw>"`',
+    },
+  };
+}
+
 /** Tier-1 CARD: ≤~20 lines, answers most structure/where/what questions on its own. */
 function buildCard(c, f) {
   return {
@@ -62,6 +95,9 @@ export function emit(root, model, functional = {}) {
     }),
   };
   if (writeIfChanged(join(dir, 'index.yaml'), dump(index))) changed++;
+
+  // TIER-0 project brief: the single inline read for archi/overview/route questions
+  if (writeIfChanged(join(dir, 'project-brief.yaml'), dump(buildBrief(model, functional, byProject)))) changed++;
 
   // per-project index: its feature contexts (one line each)
   for (const [name, ctxs] of byProject) {

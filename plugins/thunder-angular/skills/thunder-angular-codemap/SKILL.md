@@ -1,39 +1,43 @@
 ---
 name: thunder-angular-codemap
-description: Explore and understand an Angular/TypeScript codebase token-minimally via thunder-angular's pre-built YAML index (projects, feature contexts, routes, components, services, NgModules, dependency-injection graph, user-facing meaning). Use whenever the user asks how the app is structured, where a component/service lives, what routes/screens exist, or what a feature does — instead of reading .ts files.
+description: Explore and understand an Angular/TypeScript codebase token-minimally by answering INLINE from thunder-angular's pre-built YAML index (projects, feature contexts, routes, components, services, NgModules, dependency-injection graph, user-facing meaning). Use whenever the user asks how the app is structured, where a component/service lives, what routes/screens exist, or what a feature does — instead of reading .ts files.
 allowed-tools: Read, Bash, Grep
 ---
 
-# thunder-angular codemap — understand the app without reading it
+# codemap — understand the Angular app, INLINE
 
-thunder-angular maintains a hierarchical YAML index under `<project>/.claude/cache/thunder-angular/`.
-Read the index, **never the `.ts` files**, while the index answers the question. Token cost stays
-constant regardless of repo size.
+thunder-angular maintains a YAML index under `<project>/.claude/cache/thunder-angular/`. Answer from it **in
+the main loop**; never read `.ts` while the index answers.
 
-## Golden rule (two-tier index)
-**Card first, detail only when needed.** Each feature context has a **card** (`<feature>.card.yaml`,
-≤20 lines: name, purpose, capabilities, component names, services, route signatures `path → target`) and a
-**detail** (`<feature>.yaml`: full components, DI graph, NgModules, use-case flows, functional layer). The
-card answers most structure/where/what questions at ~10% of the detail's tokens. Open the detail only for a
-precise rule/flow/annotation; open a `.ts` only for a method body or template detail.
+## Rule #1 — answer inline, sub-agent budget = 0
+**Do NOT spawn ANY sub-agent (Task/Explore) for structure / where / what / which route / which flow / which
+rule.** A sub-agent costs ~**11k tokens of fixed overhead**; answering inline costs ~**1k** (≈8× cheaper).
+Not spawning an agent IS the optimization. A sub-agent is justified only to read a real `.ts` method body /
+template — then 1 agent max, seeded with exact `file:line` from the index.
 
-## Workflow
-1. **One-payload retrieval (preferred)**:
+## Workflow (all inline)
+
+1. **Architecture / overview / "what does the app do" / list routes** → read **one** file:
+   `Read .claude/cache/thunder-angular/project-brief.yaml` (arch style, projects + roles, all routes, key
+   rules). Answer from it. **Do not also read `index.yaml` or cards.**
+
+2. **A specific feature / where / flow / rule** → **one** command:
    `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" ask "<keywords>" "${CLAUDE_PROJECT_DIR}"`
-   → returns the **cards** of matching feature contexts + relevant routes. One call. Enough for most questions.
-2. Otherwise, manual drill-down:
-   - **Top** — `Read .claude/cache/thunder-angular/index.yaml`: projects (+ theme/keywords), counts.
-   - **Project** — `Read .../projects/<project>/_index.yaml`: one line per feature (with `card:` pointer).
-   - **Card** — `Read .../projects/<project>/<feature>.card.yaml` (≤20 lines). **Answer from it if it suffices.**
-   - **Detail (only if needed)** — `Read .../projects/<project>/<feature>.yaml` (the card's `detail` field gives the path):
-     components (selector, standalone, inputs/outputs, deps), services, NgModules, routes (+intent), DI graph,
-     use-case flows.
+   → ranked top-3 feature cards; the **#1 hit carries its `business_rules` + route `flows`** so it is
+   self-sufficient. **Do NOT combine** with reading `index.yaml` / `capability-map.yaml` / individual
+   `.card.yaml`. Need more: `--top N`. Full detail of one context: `ask --detail <id> "$ROOT"`.
 
-## Direct views
-- All routes: `Read .claude/cache/thunder-angular/routes.yaml` (or `thunder.mjs routes <root>`).
-- Discovery "which feature handles X?": `Grep` `capability-map.yaml` (do not load it whole).
-- Counts: `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" overview "${CLAUDE_PROJECT_DIR}"`
+3. Manual drill-down (only if you prefer files over `ask`):
+   - **Card** — `Read .../projects/<project>/<feature>.card.yaml` (≤20 lines; `card:` in the project
+     `_index.yaml` points to it). Answer from it if it suffices.
+   - **Detail (only if the card is not enough)** — `Read .../projects/<project>/<feature>.yaml` (the card's
+     `detail` field gives the path).
+
+## Inline vs fan-out artifacts
+- **Inline** (read directly, no agent): `project-brief.yaml`, `ask` output, `capability-map.yaml` (grep),
+  `routes.yaml`.
+- **Fan-out** (seed a single agent): a specific `<feature>.yaml` detail shard.
 
 ## Notes
-- `functional_stale: true` or `purpose: null` → propose `/thunder-angular:thunder-angular-reindex`.
-- For a precise symbol (component/service def or references) use `/thunder-angular:thunder-angular-sym`.
+- `functional_stale: true` or `purpose: null` → suggest `/thunder-angular:thunder-angular-reindex`.
+- For a precise symbol (component/service def or references): `/thunder-angular:thunder-angular-sym`.

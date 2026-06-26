@@ -156,3 +156,59 @@ taille du YAML.
 - `node --test engine/test/` vert + nouveaux tests (project-brief, `ask` top-k, endpoints).
 
 Quand c'est fait, donne-moi le tableau A/B/C, les fichiers touchés, et la commande de relance.
+
+---
+
+# ROUND 3 — après mesure du round 2 (l'inline marche : 25 % du coût raw)
+
+Le round 2 a fonctionné : benchmark déterministe (octets→tokens) = **thunder inline ≈ 25 %
+du coût raw inline** (3 350 vs 13 568 tok sur 6 questions), et **~27× moins cher que le
+fan-out**. `project-brief.yaml` (463 tok), `ask` top-3 (557 tok) et `endpoints.yaml` (82 tok)
+font le job. Restent 2 trous, dont un de JUSTESSE.
+
+## R3.1 — [P0, BUG DE JUSTESSE] Parseur : annotations perdues → endpoints faux
+CORRECTION de mon diagnostic R2.5 : le bug n'est PAS dans `derive.mjs:106-113` (ce code est
+correct, il ne s'exécute jamais). La cause réelle est dans `engine/lib/parser.mjs`,
+`scanAnnotations` (lignes 11-36). Preuve : `TagController` est parsé avec `ann: []` et seules
+2 de ses 5 méthodes sont captées (`createTag`, `deleteTag`) ; `getTags`, `getTagById`,
+`updateTag` manquent. Résultat : `stereo` indéfini → `endpoints: []` pour tout le contexte
+tags. Deux défauts précis :
+
+a) **Annotations pleinement qualifiées.** La regex `@(\w+)` (ligne 14) sur
+   `@io.swagger.v3.oas.annotations.tags.Tag(...)` matche `@io`, tombe dans la branche `else`
+   (ligne 30), ne consomme PAS les `(...)`, et laisse `.swagger…tags.Tag(name = "Tags", …)`
+   sur la ligne. Ce résidu est ensuite pris pour un membre `Tag(...)` qui avale les `pending`
+   annotations → `TagController.ann` devient `[]`.
+   Fix : matcher `@([\w.]+)` (nom qualifié), exposer `annName` = dernier segment après le `.`,
+   et consommer le span d'arguments complet.
+
+b) **Spans multi-lignes.** `scanAnnotations` ne scanne qu'UNE ligne ; le matching de parens
+   (21-27) ne traverse pas les lignes. Les signatures multi-lignes à params annotés
+   (`@RequestParam`, `@PageableDefault(size=20, sort="code", direction=Sort.Direction.ASC)`)
+   désynchronisent le comptage → méthodes sautées. Fix : scanner les annotations à travers les
+   lignes (réutilise `captureParensSpan`, déjà présent lignes 58-69) ou pré-joindre les lignes
+   logiques avant `scanAnnotations`.
+
+Test de non-régression OBLIGATOIRE : sur `TagController`, asserter
+`stereo === 'controller'`, **5 méthodes** captées, et **5 endpoints** émis :
+`GET /api/v1/tags`, `GET /api/v1/tags/{id}`, `POST /api/v1/tags`, `PUT /api/v1/tags/{id}`,
+`DELETE /api/v1/tags/{id}`. Ajoute aussi un cas unitaire « annotation pleinement qualifiée »
+et un cas « param annoté multi-ligne ».
+(Ce bug touche TOUT controller Spring réaliste — Swagger + Pageable sont la norme. Priorité 1.)
+
+## R3.2 — [P1] `ask` sur-répond sur les questions PONCTUELLES (mesuré sur Q5)
+Cas « unicité des codes » : `ask` renvoie 3 cartes (719 tok) alors que la réponse
+(`@Indexed(unique=true)`) tient dans 2 fichiers de 60 lignes → thunder coûte **1,9× le raw**
+ici, seul cas où l'inline perd. Fix : ranking adaptatif —
+- si le score du hit n°1 domine nettement (ex. ≥ 2× le hit n°2, ou écart > seuil), renvoyer
+  **top-1** seulement ;
+- sinon top-3 comme aujourd'hui.
+Garde `--top N` pour forcer. But : ne jamais payer 3 cartes quand 1 répond. Re-mesure Q5 :
+cible ≤ 100 % du raw (idéalement < 50 %).
+
+## R3.3 — Re-valider le bench complet après R3.1/R3.2
+Relance `tools/token-bench.mjs` (chemins A/B/C). Confirme : (A) reste ≤ 25 % de (B),
+Q5 repasse sous le raw, et ajoute une 7e question « liste tous les endpoints des tags » qui
+DOIT maintenant répondre juste (5 endpoints) en mode inline depuis `endpoints.yaml`.
+
+Garde-fous inchangés (rétro-compat, pas de reset des hashes/inférence, tests verts).

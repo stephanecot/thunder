@@ -205,7 +205,19 @@ export function parseFile(raw, relPath) {
         }
         consumed = true;
       } else {
-        const member = detectMember(rest, rl);
+        // multi-line method signature: capture params across lines so the method isn't missed
+        let rest2 = rest;
+        const openIdx = stripped.indexOf('(');
+        if (openIdx >= 0) {
+          let bal = 0;
+          for (const ch of stripped) { if (ch === '(') bal++; else if (ch === ')') bal--; }
+          if (bal > 0) {
+            const span = captureParensSpan(cleanLines, li, openIdx);
+            const params = sliceRaw(cleanLines, li, openIdx + 1, span.endLine, span.endCol).replace(/\s+/g, ' ').trim();
+            rest2 = (stripped.slice(0, openIdx) + '(' + params + ')').trim();
+          }
+        }
+        const member = detectMember(rest2, rl);
         if (member) {
           const decs = [...pending, ...decorators]; // decorators may be inline (e.g. @Input() title)
           if (member.kind === 'prop') {
