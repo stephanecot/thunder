@@ -1,0 +1,139 @@
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { shortHash } from './hash.mjs';
+import { cacheDir, ensureDir } from './cache.mjs';
+
+const STORE = (root) => join(cacheDir(root), 'functional.json');
+const STEREO = /@(RestController|Controller|Service|Repository|Component|Configuration|Entity)\b/;
+const PER_FILE_CAP = 4000;
+const TOTAL_CAP = 16000;
+
+export function loadFunctional(root) {
+  const p = STORE(root);
+  if (!existsSync(p)) return {};
+  try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return {}; }
+}
+
+export function saveFunctional(root, store) {
+  ensureDir(cacheDir(root));
+  writeFileSync(STORE(root), JSON.stringify(store));
+}
+
+/**
+ * Build the evidence pack a cartographer sees for a context. Includes structural facts
+ * for everything plus the REAL SOURCE of business-logic-bearing classes (services,
+ * controllers, entities…), so inferences are grounded and the evidence_hash is
+ * body-sensitive (a body change that alters a rule changes the hash — DESIGN §C).
+ */
+export function buildEvidence(ctx, root) {
+  const sources = {};
+  let total = 0;
+  for (const t of ctx.types) {
+    if (!STEREO.test((t.ann || []).join(' '))) continue;
+    if (total >= TOTAL_CAP) { sources['_truncated'] = true; break; }
+    try {
+      let src = readFileSync(join(root, t.file), 'utf8');
+      if (src.length > PER_FILE_CAP) src = src.slice(0, PER_FILE_CAP) + '\n/* …truncated… */';
+      sources[t.file] = src;
+      total += src.length;
+    } catch { /* ignore unreadable */ }
+  }
+  return {
+    id: ctx.id, module: ctx.module, packages: ctx.packages,
+    endpoints: ctx.endpoints.map((e) => ({ verb: e.verb, path: e.path, fn: e.fn, flow: e.flow })),
+    beans: ctx.beans,
+    entities: ctx.entities,
+    types: ctx.types.map((t) => ({ n: t.n, k: t.k, ann: t.ann, methods: t.methods, fields: t.fields })),
+    sources,
+  };
+}
+
+export const evidenceHash = (pack) => shortHash(JSON.stringify(pack));
+
+/** Which contexts need (re)inference: missing functional data or body/structure drift. */
+export function staleContexts(model, root, functional) {
+  const out = [];
+  for (const ctx of model.contexts) {
+    const f = functional[ctx.id];
+    const hash = evidenceHash(buildEvidence(ctx, root));
+    if (!f) out.push({ id: ctx.id, reason: 'missing', hash });
+    else if (f.evidence_hash !== hash) out.push({ id: ctx.id, reason: 'changed', hash });
+  }
+  return out;
+}
+
+const FUNC_FIELDS = ['name', 'purpose', 'capabilities', 'business_rules', 'intents', 'glossary', 'confidence'];
+
+/** Merge inferred functional data for one context into the store (with fresh hashes). */
+export function setFunctional(root, model, ctxId, data) {
+  const ctx = model.contexts.find((c) => c.id === ctxId);
+  if (!ctx) throw new Error(`unknown context: ${ctxId}`);
+  const store = loadFunctional(root);
+  const entry = { evidence_hash: evidenceHash(buildEvidence(ctx, root)), src_hash: ctx.src_hash };
+  for (const k of FUNC_FIELDS) if (data[k] !== undefined) entry[k] = data[k];
+  store[ctxId] = entry;
+  saveFunctional(root, store);
+  return entry;
+}
+
+// ---- module-level functional rollup (so index.yaml is navigable functionally) ----
+
+const STOP = new Set((
+  'le la les un une des de du et à a au aux en pour par sur avec ou ce cette ces est sont son sa ses ' +
+  'dans qui que se ne pas plus the of and to in for with par leur lel utilisateur'
+).split(' '));
+
+/** Deterministic keyword rollup from a module's already-inferred context purposes/capabilities. */
+export function moduleKeywords(ctxIds, functional, max = 6) {
+  const freq = new Map();
+  for (const id of ctxIds) {
+    const f = functional[id];
+    if (!f) continue;
+    const text = [f.purpose || '', ...(f.capabilities || [])].join(' ').toLowerCase();
+    for (const w of text.split(/[^a-zàâäéèêëïîôöùûüç0-9]+/)) {
+      if (w.length < 3 || STOP.has(w)) continue;
+      freq.set(w, (freq.get(w) || 0) + 1);
+    }
+  }
+  return [...freq.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, max).map(([w]) => w);
+}
+
+/** Hash a module's functional content — drives module-theme staleness. */
+export function moduleContextHash(model, moduleName, functional) {
+  const parts = [];
+  for (const c of model.contexts) {
+    if (c.module !== moduleName) continue;
+    const f = functional[c.id];
+    if (f) parts.push(`${c.id}|${f.purpose || ''}|${(f.capabilities || []).join(',')}`);
+  }
+  parts.sort();
+  return parts.length ? shortHash(parts.join('\n')) : null;
+}
+
+export const loadModuleFunctional = (functional) => functional.__modules__ || {};
+
+export function setModuleFunctional(root, model, moduleName, data) {
+  const store = loadFunctional(root);
+  if (!store.__modules__) store.__modules__ = {};
+  const entry = { context_hash: moduleContextHash(model, moduleName, store) };
+  if (data.theme !== undefined) entry.theme = data.theme;
+  if (data.keywords !== undefined) entry.keywords = data.keywords;
+  store.__modules__[moduleName] = entry;
+  saveFunctional(root, store);
+  return entry;
+}
+
+/** Modules whose inferred theme is missing or out of date (only those with inferred contexts). */
+export function staleModules(model, root, functional) {
+  const byMod = {};
+  for (const c of model.contexts) (byMod[c.module] ||= []).push(c.id);
+  const out = [];
+  for (const m of Object.keys(byMod).sort()) {
+    const hash = moduleContextHash(model, m, functional);
+    if (!hash) continue; // no functional contexts yet → nothing to roll up
+    const e = (functional.__modules__ || {})[m];
+    if (!e) out.push({ module: m, reason: 'missing', hash });
+    else if (e.context_hash !== hash) out.push({ module: m, reason: 'changed', hash });
+  }
+  return out;
+}

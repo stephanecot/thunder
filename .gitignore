@@ -1,0 +1,12 @@
+# Thunder engine caches (regenerated)
+**/.claude/cache/
+
+# Synthetic benchmark codebases
+**/bigdemo/
+**/realdemo/
+
+# Maven build output
+**/target/
+
+# Node
+node_modules/
