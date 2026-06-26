@@ -1,7 +1,7 @@
 import { shortHash } from './hash.mjs';
 
 const STEREO = { Component: 'component', Injectable: 'service', NgModule: 'module', Directive: 'directive', Pipe: 'pipe' };
-const decName = (d) => (d.match(/^@(\w+)/) || [])[1] || '';
+const decName = (d) => ((d.match(/^@([\w.]+)/) || [])[1] || '').split('.').pop();
 const hasDec = (decs, name) => decs.some((d) => decName(d) === name);
 const findDec = (decs, name) => decs.find((d) => decName(d) === name);
 const strVal = (dec, key) => (dec.match(new RegExp(key + "\\s*:\\s*['\"]([^'\"]*)")) || [])[1] || null;

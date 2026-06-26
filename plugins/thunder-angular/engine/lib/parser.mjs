@@ -12,7 +12,7 @@ const PRIMS = new Set(['string', 'number', 'boolean', 'any', 'void', 'unknown', 
 function scanDecorators(cl, rl) {
   const decorators = [];
   const stripped = cl.split('');
-  const re = /@(\w+)/g;
+  const re = /@([\w.]+)/g;
   let m;
   while ((m = re.exec(cl))) {
     const start = m.index;
@@ -163,7 +163,7 @@ export function parseFile(raw, relPath) {
     // so its object-literal braces never corrupt class brace-depth counting.
     if (cl.trim().startsWith('@')) {
       const at = cl.indexOf('@');
-      const nm = (cl.slice(at).match(/^@(\w+)/) || [])[1];
+      const nm = (cl.slice(at).match(/^@([\w.]+)/) || [])[1];
       const pc = cl.indexOf('(', at);
       if (nm && pc >= 0) {
         const span = captureParensSpan(cleanLines, li, pc);

@@ -107,7 +107,7 @@ async function cmdSetModuleFunctional(root, name) {
  * Deterministic, self-sufficient retrieval (INLINE — no sub-agent). One payload:
  * ranked top-N feature cards + the #1 hit enriched (business_rules + route flows) + routes of shown contexts.
  */
-function cmdAsk(root, query, top = 3) {
+function cmdAsk(root, query, topOverride) {
   if (!query) { console.error('usage: ask "<keywords>" [--top N] <root>'); process.exit(1); }
   const { model, functional } = build(root);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -120,6 +120,9 @@ function cmdAsk(root, query, top = 3) {
     if (score) scored.push({ c, f, score });
   }
   scored.sort((a, b) => b.score - a.score || a.c.id.localeCompare(b.c.id));
+  // adaptive ranking: a dominant #1 hit (≥2× the #2 score) → top-1; otherwise top-3. `--top N` forces.
+  let top = topOverride;
+  if (top == null) top = (scored.length <= 1 || (scored[0].score >= 2 * (scored[1]?.score || 0))) ? 1 : 3;
   const sel = scored.slice(0, top);
   const cards = sel.map(({ c, f, score }, i) => ({
     score, id: c.id, name: f.name || c.name, purpose: f.purpose || null,
@@ -215,7 +218,7 @@ if (flags.has('--selftest')) {
     case 'routes': cmdRoutes(R(pos[1])); break;
     case 'ask':
       if (flags.has('--detail')) cmdAskDetail(R(pos[2]), pos[1]);
-      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : 3; })());
+      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : undefined; })());
       break;
     case 'stale': cmdStale(R(pos[1]), flags.has('--json')); break;
     case 'stale-modules': cmdStaleModules(R(pos[1]), flags.has('--json')); break;
