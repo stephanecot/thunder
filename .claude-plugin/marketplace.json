@@ -10,7 +10,7 @@
       "name": "thunder-java",
       "source": "./plugins/thunder-java",
       "description": "Token-minimal comprehension, exploration and navigation of Java/Spring Boot codebases (hierarchical YAML index: technical + inferred functional layer).",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "keywords": ["java", "spring-boot", "codebase", "index", "token-efficient"]
     },
     {

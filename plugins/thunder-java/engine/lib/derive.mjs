@@ -15,7 +15,7 @@ const NON_BEAN = new Set([
   'float', 'Float', 'BigDecimal', 'List', 'Set', 'Map', 'Optional', 'Object', 'void', 'UUID', 'LocalDate', 'LocalDateTime',
 ]);
 
-const annName = (a) => (a.match(/^@(\w+)/) || [])[1] || '';
+const annName = (a) => ((a.match(/^@([\w.]+)/) || [])[1] || '').split('.').pop();
 const firstString = (a) => (a.match(/"([^"]*)"/) || [])[1] || '';
 const hasAnn = (anns, name) => anns.some((a) => annName(a) === name);
 const findAnn = (anns, name) => anns.find((a) => annName(a) === name);

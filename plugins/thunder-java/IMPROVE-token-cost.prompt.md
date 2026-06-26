@@ -1,3 +1,13 @@
+> ## ⏩ ÉTAT — COMMENCE ICI
+> Les rounds 1 et 2 sont **déjà implémentés et validés** (ne pas refaire). Mesures actuelles :
+> thunder inline = **25 % du coût raw**, **~27× moins** que le fan-out ; `project-brief.yaml`,
+> `ask` top-3, `--detail`, tiering cards = en place.
+> **Le travail ACTIF est le `# ROUND 3` en bas du fichier** — un bug de justesse (parseur,
+> endpoints faux) + un fix `ask` ponctuel. Va directement à R3.1 / R3.2 / R3.3.
+> Les rounds 1-2 ci-dessous restent comme contexte/historique.
+
+---
+
 # Objectif : réduire le COÛT EN TOKENS par requête de l'index thunder-java
 
 Contexte : l'index fonctionne mais sur un projet test réel (25 contextes, 5 modules)

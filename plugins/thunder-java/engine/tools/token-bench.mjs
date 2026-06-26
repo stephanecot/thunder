@@ -38,6 +38,8 @@ const Q = [
   { kind: 'securite', struct: true, A: () => analyzeTok(), B: () => fileTok(...controllers), Cc: () => SUBAGENT + fileTok(shard(sample)) },
   { kind: 'persistance', struct: false, A: () => askTok(`${name} entity relation`) + fileTok(shard(sample)), B: () => fileTok(...sample.files.map(abs)), Cc: () => SUBAGENT + fileTok(shard(sample)) },
   { kind: 'endpoint', struct: true, A: () => askTok(name), B: () => fileTok(...controllers), Cc: () => SUBAGENT + fileTok(shard(sample)) },
+  // R3.3: "list all endpoints of context X" — inline (ask/grep), not a whole-file read
+  { kind: 'endpoints-list', struct: true, A: () => askTok(name), B: () => fileTok(...sample.files.map(abs).filter((p) => p.endsWith('Controller.java'))), Cc: () => SUBAGENT + fileTok(shard(sample)) },
 ];
 
 if (!existsSync(join(C, 'project-brief.yaml'))) { console.error('build the index first'); process.exit(1); }
@@ -56,5 +58,5 @@ const abRatio = Math.round((aStruct / bStruct) * 100);
 const acRatio = Math.round((aAll / cAll) * 100);
 console.log(`\n(A) vs (B) on structure/where/what/flux/endpoint: ${aStruct} vs ${bStruct} tok → **${abRatio}%** (target ≤ 25%).`);
 console.log(`(A) vs (C) overall: ${aAll} vs ${cAll} tok → **${acRatio}%** (target ≤ 15%).`);
-console.log(`Questions answered in mode (A) without any sub-agent: **${inlineOk}/6** (target ≥ 5/6).`);
-process.exit(abRatio <= 25 && acRatio <= 15 && inlineOk >= 5 ? 0 : 1);
+console.log(`Questions answered in mode (A) without any sub-agent: **${inlineOk}/${Q.length}** (target ≥ ${Q.length - 1}/${Q.length}).`);
+process.exit(abRatio <= 25 && acRatio <= 15 && inlineOk >= Q.length - 1 ? 0 : 1);

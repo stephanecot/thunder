@@ -17,7 +17,7 @@ import {
  * ranked top-N context cards + the #1 hit enriched (business_rules + flows) + matching endpoints.
  * Answer from this directly; do NOT also load index.yaml or individual card files.
  */
-function cmdAsk(root, query, top = 3) {
+function cmdAsk(root, query, topOverride) {
   if (!query) { console.error('usage: ask "<keywords>" [--top N] <root>'); process.exit(1); }
   const { model, functional } = build(root);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -30,6 +30,9 @@ function cmdAsk(root, query, top = 3) {
     if (score) scored.push({ c, f, score });
   }
   scored.sort((a, b) => b.score - a.score || a.c.id.localeCompare(b.c.id));
+  // adaptive ranking: a dominant #1 hit (≥2× the #2 score) → top-1; otherwise top-3. `--top N` forces.
+  let top = topOverride;
+  if (top == null) top = (scored.length <= 1 || (scored[0].score >= 2 * (scored[1]?.score || 0))) ? 1 : 3;
   const sel = scored.slice(0, top);
   const cards = sel.map(({ c, f, score }, i) => ({
     score, id: c.id, name: f.name || c.name, purpose: f.purpose || null,
@@ -275,7 +278,7 @@ if (flags.has('--selftest')) {
     case 'sym': cmdSym(R(pos[3]), pos[1], pos[2]); break;          // sym <def|refs> <Name> [root]
     case 'ask':                                                    // ask "<keywords>" [--top N] [root]  |  ask --detail <id> [root]
       if (flags.has('--detail')) cmdAskDetail(R(pos[2]), pos[1]);
-      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : 3; })());
+      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : undefined; })());
       break;
     default: console.error(`unknown command: ${cmd}`); process.exit(1);
   }

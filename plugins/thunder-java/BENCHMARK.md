@@ -304,3 +304,33 @@ Sur `demo/` (petits fichiers) le ratio A/B est moins favorable (~31 %) — c'est
 - `engine/tools/token-bench.mjs` — eval v2 A/B/C (croissance contexte principal, overhead sous-agent).
 - `engine/test/round2.test.mjs` — tests multi-lignes / endpoint / project-brief (42 tests au total).
 - `skills/thunder-java-codemap/SKILL.md`, `skills/thunder-java-grok/SKILL.md` — doctrine inline-first.
+
+---
+
+## 10. ROUND 3 — bug de justesse (parseur) + ranking adaptatif
+
+**R3.1 — bug de justesse corrigé.** Sur un controller Spring réaliste (Swagger + Pageable), `scanAnnotations`
+ratait des annotations → `@RestController` perdu → `stereo` indéfini → **0 endpoint** sur tout le contexte.
+Deux causes :
+- **Annotations pleinement qualifiées** : `@(\w+)` matchait `@io` dans `@io.swagger…Tag(...)`, laissait un
+  résidu pris pour un membre qui avalait les `pending` → annotations de classe perdues. Fix : `@([\w.]+)`,
+  `annName` = dernier segment.
+- **Args d'annotation multi-lignes** : `scanAnnotations` ne traversait pas les lignes. Fix : capture des
+  spans multi-lignes (`captureParensSpan`).
+
+Test de non-régression : `TagController` (Swagger qualifié + param `Pageable` multi-ligne) → `@RestController`
+conservé, **5 méthodes**, **5 endpoints** (`GET/POST/PUT/DELETE /api/v1/tags…`). + cas unitaires « qualifié »
+et « membre vs résidu ». *Ce bug touchait tout controller réaliste (Swagger/Pageable sont la norme).*
+
+**R3.2 — `ask` ranking adaptatif.** Sur une question ponctuelle, renvoyer 3 cartes sur-répondait. Désormais :
+si le hit #1 domine (score ≥ 2× le #2) → **top-1** ; sinon top-3. `--top N` force. Mesuré : `ask "unique
+email"` → 1 carte (au lieu de 3).
+
+**R3.3 — bench re-validé (7 questions)** sur `realdemo` : A/B = **1 %** (≤ 25 %), A/C = **11 %** (≤ 15 %),
+**7/7** inline. 7ᵉ question « lister les endpoints d'un contexte » répond juste inline (parser corrigé).
+
+Fichiers touchés : `engine/lib/parser.mjs` (scanAnnotations qualifié + multi-lignes), `engine/lib/derive.mjs`
+(`annName` dernier segment), `engine/thunder.mjs` (`ask` adaptatif), `engine/test/round3.test.mjs`
+(TagController), `engine/tools/token-bench.mjs` (7ᵉ question). **46 tests verts.**
+
+Relance : `node engine/tools/token-bench.mjs realdemo`

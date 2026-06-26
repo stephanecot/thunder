@@ -7,11 +7,12 @@ const CTRL = new Set([
 ]);
 const MODS = /\b(public|private|protected|static|final|abstract|synchronized|native|default|volatile|transient)\b/g;
 
-/** Find annotations on a cleaned line; return them (with raw args) and the line blanked of them. */
+/** Find annotations on a cleaned line; return them (with raw args) and the line blanked of them.
+ *  Matches FULLY-QUALIFIED names (e.g. @io.swagger…Tag) so the qualifier is not mistaken for a member. */
 function scanAnnotations(cl, rl) {
   const anns = [];
   const stripped = cl.split('');
-  const re = /@(\w+)/g;
+  const re = /@([\w.]+)/g;
   let m;
   while ((m = re.exec(cl))) {
     const start = m.index;
@@ -117,6 +118,24 @@ export function parseFile(raw, relPath) {
       if (pm) { file.pkg = pm[1]; continue; }
     }
     if (/^\s*import\s/.test(cl)) continue;
+
+    // multi-line annotation args (e.g. @ApiOperation(\n summary = "...",\n ...)): capture across lines so
+    // the object/paren content never desyncs counting and the annotation attaches to the next declaration.
+    if (cl.trim().startsWith('@')) {
+      const at = cl.indexOf('@');
+      const nm = (cl.slice(at).match(/^@([\w.]+)/) || [])[1];
+      const pc = cl.indexOf('(', at);
+      if (nm && pc >= 0) {
+        let bal = 0;
+        for (let c = pc; c < cl.length; c++) { if (cl[c] === '(') bal++; else if (cl[c] === ')') bal--; }
+        if (bal > 0) {
+          const span = captureParensSpan(cleanLines, li, pc);
+          pending.push('@' + nm + '(' + sliceLines(rawLines, li, pc + 1, span.endLine, span.endCol).replace(/\s+/g, ' ') + ')');
+          li = span.endLine;
+          continue;
+        }
+      }
+    }
 
     const { anns, stripped } = scanAnnotations(cl, rl);
     const rest = stripped.trim();
