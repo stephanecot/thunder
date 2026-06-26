@@ -1,0 +1,9 @@
+{
+  "name": "thunder-angular",
+  "displayName": "Thunder Angular ⚡",
+  "version": "0.1.0",
+  "description": "Token-minimal comprehension, exploration and navigation of Angular/TypeScript codebases. Pure-Node, zero-dependency engine that builds a hierarchical YAML index (technical: components, services, routes, NgModules, DI graph + inferred functional layer), kept fresh by hooks.",
+  "author": { "name": "Stéphane Cottin", "email": "stephanecot@gmail.com" },
+  "keywords": ["angular", "typescript", "codebase", "index", "navigation", "token-efficient"],
+  "license": "MIT"
+}

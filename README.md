@@ -10,7 +10,7 @@ navigate a codebase while spending **2–3 orders of magnitude fewer tokens**.
 | Plugin | Stack | Status |
 |---|---|---|
 | [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | ✅ available |
-| `thunder-angular` | Angular / TypeScript | 🔜 planned |
+| [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | ✅ available |
 
 > Shared architecture: pure Node.js engine (zero dependencies), cross-platform, sharded YAML index,
 > incremental cache, hooks that never spend tokens silently. Each plugin writes its index to its own
