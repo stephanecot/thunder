@@ -213,3 +213,42 @@ codebase, *comprendre / explorer / naviguer* coûte **2 à 3 ordres de grandeur 
 pertinence **égale ou supérieure** (réponses exactes + sens métier ancré). Le coût bascule vers une
 indexation **unique et gratuite** (technique) ou **amortie** (fonctionnelle). thunder ne « compresse » pas
 une réponse intrinsèquement large (dump de tout) — il évite surtout de **lire pour chercher**.
+
+---
+
+## 8. Optimisation « coût par requête » — index à deux tiers (carte / détail)
+
+Problème adressé : sur un contexte donné, lire le shard détail coûtait presque autant que lire le `.java`.
+Solution : chaque contexte émet désormais une **carte** tier-1 (`<ctx>.card.yaml`, ≤20 lignes) + le
+**détail** tier-2 (`<ctx>.yaml`, inchangé, rétro-compat). Le chemin de récupération lit la **carte d'abord**
+(ou la commande déterministe `ask "<mots-clés>"` qui renvoie les cartes + endpoints en **un seul payload**).
+
+### token-bench (avant = full-shard, après = card-only) — sur `demo/`
+
+| Question | type | card-only (tok) | full-shard (tok) | raw-java (tok) | card/full |
+|---|---|---|---|---|---|
+| Quels types compose le contexte user ? | structure | 92 | 870 | 747 | **11 %** |
+| Quels endpoints expose le contexte user ? | endpoint | 137 | 870 | 130 | **16 %** |
+| Où est UserService et qui en dépend ? | where | 92 | 870 | 416 | **11 %** |
+| Quel est le flux de création d'un user ? | flux | 92 | 870 | 485 | **11 %** |
+| Quels endpoints renvoient une entité (fuite) ? | sécurité | 137 | 1 560 | 288 | **9 %** |
+| Quelle règle métier à l'inscription ? | règle-métier | 962 | 870 | 549 | 111 % (escalade détail) |
+
+**Mode carte sur structure/where/what/endpoint/flux/sécu : 550 tok vs 5 040 tok full-shard → 11 %**
+(cible ≤ 40 % **atteinte**). Honnêteté : une question de **règle métier précise** escalade au détail
+(la carte ne la couvre pas) — c'est attendu et explicite dans les skills.
+
+Relancer l'eval : `node engine/tools/token-bench.mjs demo` (exit 0 si carte ≤ 40 % du full-shard).
+
+### Fichiers touchés
+- `engine/lib/emit.mjs` — émission carte tier-1, `_index` pointant les cartes, régime YAML (drop du
+  chemin par-type), `endpoints.yaml` enrichi (req/resp).
+- `engine/lib/derive.mjs` — endpoints enrichis (type req/resp).
+- `engine/thunder.mjs` — nouvelle commande `ask "<mots-clés>" <root>`.
+- `engine/tools/token-bench.mjs` — eval reproductible (nouveau).
+- `engine/test/card.test.mjs` — tests tiering carte + `_index` + endpoints enrichis (nouveau).
+- `skills/thunder-java-codemap/SKILL.md`, `skills/thunder-java-grok/SKILL.md` — chemin de récupération
+  carte-d'abord + `ask`.
+
+Garde-fous respectés : `<ctx>.yaml` détail conservé (sym en dépend), hashes d'evidence et cycle
+stale/reindex inchangés, `node --test` vert (39 tests).

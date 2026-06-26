@@ -109,10 +109,13 @@ export function derive(files) {
           if (!mapAnn) continue;
           let verb = VERB[annName(mapAnn)];
           if (!verb) verb = (mapAnn.match(/RequestMethod\.(\w+)/) || [])[1] || 'ANY';
+          const resp = (m.sig.split('):')[1] || '').trim() || null;
+          const params = (m.sig.match(/^\(([^)]*)\)/) || [])[1] || '';
+          const req = params.split(',').map((s) => s.trim()).filter(Boolean)[0] || null;
           const ep = {
             verb, path: joinPath(classPath, firstString(mapAnn)),
             fn: `${t.name}.${m.name}`, l: m.line,
-            ctx: ctx.id, controller: t.name,
+            ctx: ctx.id, controller: t.name, req, resp,
           };
           ctx.endpoints.push(ep);
           allEndpoints.push(ep);

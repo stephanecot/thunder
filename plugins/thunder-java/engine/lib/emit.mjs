@@ -11,17 +11,36 @@ function writeIfChanged(path, content) {
   return true;
 }
 
-const shardFile = (dir, ctx) => join(dir, 'modules', ctx.module, ctx.packages.join(',') + '.yaml');
+const shardRel = (ctx) => `modules/${ctx.module}/${ctx.packages.join(',')}.yaml`;
+const cardRel = (ctx) => `modules/${ctx.module}/${ctx.packages.join(',')}.card.yaml`;
+const shardFile = (dir, ctx) => join(dir, shardRel(ctx));
+const cardFile = (dir, ctx) => join(dir, cardRel(ctx));
 
 // Trivial accessors carry no comprehension value — drop them from the shard (token-minimal).
 const ACCESSOR = /^(get|set|is)[A-Z0-9]/;
 const TRIVIAL = new Set(['equals', 'hashCode', 'toString']);
 function denseTypes(types) {
   return types.map((t) => {
-    const methods = t.methods.filter((m) => !ACCESSOR.test(m.n) && !TRIVIAL.has(m.n));
-    const omitted = t.methods.length - methods.length;
-    return omitted ? { ...t, methods, accessors_omitted: omitted } : { ...t, methods };
+    const { file, ...rest } = t; // drop the redundant per-type path (implicit from the shard id)
+    const methods = rest.methods.filter((m) => !ACCESSOR.test(m.n) && !TRIVIAL.has(m.n));
+    const omitted = rest.methods.length - methods.length;
+    return omitted ? { ...rest, methods, accessors_omitted: omitted } : { ...rest, methods };
   });
+}
+
+/** Tier-1 CARD: ≤~20 lines, answers most structure/where/what questions on its own. */
+function buildCard(c, f) {
+  return {
+    card: {
+      id: c.id, name: f.name || c.name, purpose: f.purpose || null,
+      ...(f.capabilities ? { capabilities: f.capabilities } : {}),
+      types: c.types.map((t) => t.n),
+      endpoints: c.endpoints.map((e) => `${e.verb} ${e.path}`),
+      beans: Object.keys(c.beans).length,
+      entities: Object.keys(c.entities).length,
+      detail: shardRel(c),
+    },
+  };
 }
 
 /** Emit the YAML index (the model-facing artifact) from the derived model. */
@@ -41,7 +60,7 @@ export function emit(root, model, functional = {}) {
   const index = {
     meta: {
       modules: model.modules.length, contexts: model.contexts.length, endpoints: model.endpoints.length,
-      shard_path: 'modules/<module>/<packages>.yaml  (id = <module>/<packages>)',
+      shard_path: 'modules/<module>/<packages>.card.yaml (tier-1 card, read first) ; .yaml (tier-2 detail)',
     },
     modules: [...byModule.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, ctxs]) => {
       const m = loadModuleFunctional(functional)[name];
@@ -68,6 +87,7 @@ export function emit(root, model, functional = {}) {
         id: c.id, name: functional[c.id]?.name || c.name,
         purpose: functional[c.id]?.purpose || null,
         files: c.fileCount, endpoints: c.endpoints.length,
+        card: cardRel(c),
       })),
     };
     if (writeIfChanged(join(dir, 'modules', name, '_index.yaml'), dump(modIndex))) changed++;
@@ -80,9 +100,9 @@ export function emit(root, model, functional = {}) {
   });
   if (writeIfChanged(join(dir, 'capability-map.yaml'), dump({ contexts: caps }))) changed++;
 
-  // global endpoint table
+  // global endpoint table — enriched so "endpoint" questions answer without opening a shard
   if (writeIfChanged(join(dir, 'endpoints.yaml'),
-    dump({ endpoints: model.endpoints.map((e) => ({ verb: e.verb, path: e.path, fn: e.fn, ctx: e.ctx, flow: e.flow })) }))) changed++;
+    dump({ endpoints: model.endpoints.map((e) => ({ verb: e.verb, path: e.path, fn: e.fn, ...(e.req ? { req: e.req } : {}), ...(e.resp ? { resp: e.resp } : {}), ctx: e.ctx })) }))) changed++;
 
   // per-context shards (merge functional layer if present)
   const wantedShards = new Set();
@@ -109,6 +129,11 @@ export function emit(root, model, functional = {}) {
       },
     };
     if (writeIfChanged(path, dump(shard))) changed++;
+
+    // tier-1 card
+    const cpath = cardFile(dir, c);
+    wantedShards.add(cpath);
+    if (writeIfChanged(cpath, dump(buildCard(c, f)))) changed++;
   }
 
   // prune shards of contexts that no longer exist

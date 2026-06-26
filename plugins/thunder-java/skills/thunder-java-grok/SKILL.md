@@ -4,40 +4,41 @@ description: Answer a question about what a Java/Spring codebase does or how it 
 allowed-tools: Read, Grep, Bash, Task
 ---
 
-# grok — répondre à une question sur la codebase
+# grok — answer a question about the codebase
 
-Objectif : répondre **juste** avec le **minimum de tokens**. On part de l'index (compact, déjà construit),
-on ne lit du source que si nécessaire, et on délègue toute exploration large à des sous-agents **ensemencés**
-avec la tranche d'index pertinente (ils ne ré-explorent pas à zéro).
+Goal: answer **correctly** with the **fewest tokens**. Start from the index (compact, already built), read
+source only when needed, and delegate broad exploration to sub-agents **seeded** with the relevant index
+slice (so they don't re-explore from scratch).
 
 ```bash
 ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${CLAUDE_PROJECT_DIR}"
 ```
 
-## Procédure
+## Procedure
 
-1. **Cibler les contextes pertinents** (cheap discovery, sans tout charger) :
-   - `Grep` les mots-clés métier de la question dans `.claude/cache/thunder-java/capability-map.yaml`
-     et/ou `endpoints.yaml`.
-   - `Read .claude/cache/thunder-java/index.yaml` pour situer le bon module.
+1. **Deterministic one-payload retrieval (default step)**:
+   `node "$ENG" ask "<keywords from the question>" "$ROOT"` → returns the **cards** of matching contexts
+   (name, purpose, capabilities, types, endpoints) + relevant endpoints. **One call.** For a structure /
+   where / what / endpoint / flow question, **this is enough — answer from it.**
+   (Manual alternative: `Grep` `capability-map.yaml`, then `Read` the targeted `<ctx>.card.yaml`.)
 
-2. **Charger les shards ciblés** : `Read` 1 à 3 shards de contexte (`modules/<m>/<pkg>.yaml`). Ils donnent
-   types, endpoints (+intent), beans, entités, use-cases (flux dérivés) et la couche fonctionnelle. **Souvent
-   suffisant pour répondre — n'ouvre rien d'autre.**
+2. **Detail only if the card is not enough** (precise business rule, exact validation, full signature,
+   field annotation): `Read .../modules/<m>/<pkg>.yaml` (path is in the card's `detail` field). Open **one**
+   detail shard at a time, only for the relevant context.
 
-3. **Si (et seulement si) il faut le code réel** (un corps de méthode, une logique précise) :
-   - Délègue à des sous-agents **`Explore`** (Task), **plafonnés à ~3-4 en parallèle**, en **donnant à chacun
-     le shard pertinent + les `fichier:ligne` exacts** à inspecter. Ils renvoient une conclusion courte, pas
-     des dumps. Leur contexte est jeté → le contexte principal reste propre.
-   - Pour situer un symbole avant de déléguer : `node "$ENG" sym def <Name> "$ROOT"`.
+3. **Only if real code is needed** (a method body, precise logic):
+   - Delegate to `Explore` sub-agents (Task), **capped ~3-4 in parallel**, each given the relevant shard +
+     exact `file:line` to inspect. They return a short conclusion, not dumps. Their context is discarded →
+     the main context stays clean.
+   - To locate a symbol before delegating: `node "$ENG" sym def <Name> "$ROOT"`.
 
-4. **Synthétiser** : réponds avec des citations `fichier:ligne`. Distingue ce qui est **exact** (technique,
-   issu de l'index) de ce qui est **inféré** (couche fonctionnelle, marquée `inferred`).
+4. **Synthesize**: answer with `file:line` citations. Separate what is **exact** (technical, from the index)
+   from what is **inferred** (functional layer, marked inferred).
 
-## Garde-fous (tokens)
+## Token guards
 
-- Ne lis jamais un module entier de `.java`. Préfère toujours shard → puis fan-out ciblé.
-- Le coût du fan-out est réel (les sous-agents consomment des tokens) : plafonne, et n'en lance que si l'index
-  ne suffit pas. Pour une question de pure structure, l'index seul répond.
-- Si la couche fonctionnelle est absente (`purpose: null`) ou `functional_stale`, propose `/thunder-java:thunder-java-reindex`
-  avant de répondre à une question franchement métier.
+- Never read a whole module of `.java`. Always prefer card → detail → targeted fan-out.
+- Fan-out spends tokens in sub-agents: cap it, and only when the index is insufficient. A pure structure
+  question is answered by the index alone.
+- If the functional layer is missing (`purpose: null`) or `functional_stale`, suggest
+  `/thunder-java:thunder-java-reindex` before answering a clearly business-level question.

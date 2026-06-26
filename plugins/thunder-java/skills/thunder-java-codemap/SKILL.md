@@ -4,42 +4,48 @@ description: Explore and understand a Java/Spring Boot codebase token-minimally 
 allowed-tools: Read, Bash, Grep
 ---
 
-# codemap — comprendre la codebase sans la lire
+# codemap — understand the codebase without reading it
 
-thunder maintient un **index hiérarchique YAML** sous `<projet>/.claude/cache/thunder-java/`. Lis l'index,
-**jamais les fichiers `.java`** tant que l'index répond. Le coût en tokens reste constant quelle que
-soit la taille du repo.
+thunder maintains a hierarchical YAML index under `<project>/.claude/cache/thunder-java/`. Read the index,
+**never the `.java` files**, while the index answers the question. Token cost stays constant regardless of
+repo size.
 
-## Règle d'or
+## Golden rule (two-tier index)
 
-> Charge le sommet → descends d'un cran → lis **un seul shard**. N'ouvre un `.java` que si l'index ne
-> contient pas le détail précis demandé (un corps de méthode, par ex.).
+> **Card first, detail only when needed.** Each context has a **card** (`<ctx>.card.yaml`, ≤20 lines:
+> name, purpose, capabilities, type names, endpoints `verb+path`, #beans/#entities) and a **detail**
+> (`<ctx>.yaml`: full signatures, field annotations, cited `business_rules`, intents, use-cases). The
+> **card answers ~80% of questions** (structure / where / what / endpoints / flow) at ~10% of the detail's
+> tokens. Open the **detail** only for a precise business rule, a full signature or a field annotation;
+> open a `.java` only for a method body.
 
 ## Workflow
 
-1. **S'assurer que l'index existe** (le hook SessionStart le fait normalement). Sinon :
-   `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" ensure "${CLAUDE_PROJECT_DIR}"`
+1. **One-payload retrieval (preferred)**:
+   `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" ask "<keywords from the question>" "${CLAUDE_PROJECT_DIR}"`
+   → returns the **cards** of matching contexts + relevant endpoints. One call, no manual grep+drill.
+   Enough for most questions.
 
-2. **Sommet** — `Read .claude/cache/thunder-java/index.yaml` : liste des **modules** + compteurs (≈10 lignes).
+2. Otherwise, manual drill-down:
+   - **Top** — `Read .claude/cache/thunder-java/index.yaml`: modules + counters (~10 lines).
+   - **Module** — `Read .../modules/<module>/_index.yaml`: one line per context (with `card:` pointer).
+   - **Card** — `Read .../modules/<module>/<packages>.card.yaml` (≤20 lines). **Answer from the card if it
+     suffices.**
+   - **Detail (only if the card is not enough)** — `Read .../modules/<module>/<packages>.yaml` (the card's
+     `detail` field gives the path).
 
-3. **Drill-down module** — `Read .claude/cache/thunder-java/modules/<module>/_index.yaml` : une ligne par
-   **contexte** (id, name, purpose, #endpoints).
+> Example: "which endpoints / types / dependencies of module X" → card. "the exact validation on the email
+> field" → detail. "the body of the register method" → the `.java`.
 
-4. **Shard contexte** — `Read .claude/cache/thunder-java/modules/<module>/<packages>.yaml` (chemin =
-   convention `meta.shard_path`). Tu y trouves : types + signatures, endpoints (+intent), graphe de
-   beans, entités JPA (+relations, +repository), use-cases, et la couche fonctionnelle (purpose,
-   capabilities, business_rules).
+## Direct views
 
-## Vues directes (quand c'est plus rapide qu'un Read)
-
-- Tous les endpoints : `Read .claude/cache/thunder-java/endpoints.yaml` (ou `thunder endpoints <root>`)
-- Découverte « qui gère X ? » : `Grep` dans `capability-map.yaml` (fichier plat, grepable) — ne le
-  charge pas en entier.
-- Aperçu compteurs : `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" overview "${CLAUDE_PROJECT_DIR}"`
+- All endpoints: `Read .claude/cache/thunder-java/endpoints.yaml` (or `thunder.mjs endpoints <root>`).
+- Discovery "who handles X?": `Grep` `capability-map.yaml` (flat, greppable) — do not load it whole.
+- Counters: `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" overview "${CLAUDE_PROJECT_DIR}"`
 
 ## Notes
 
-- Un champ `functional_stale: true` dans un shard signale que le métier inféré peut être périmé →
-  propose `/thunder-java:thunder-java-reindex`.
-- Si `purpose` est `null`, la couche fonctionnelle n'a pas encore été inférée → `/thunder-java:thunder-java-reindex`.
-- Pour un symbole précis (définition/références), utilise plutôt `/thunder-java:thunder-java-sym`.
+- A `functional_stale: true` field in a shard means the inferred meaning may be outdated →
+  suggest `/thunder-java:thunder-java-reindex`.
+- If `purpose` is `null`, the functional layer has not been inferred yet → `/thunder-java:thunder-java-reindex`.
+- For a precise symbol (definition/references), prefer `/thunder-java:thunder-java-sym`.

@@ -4,30 +4,30 @@ description: Precisely locate a Java symbol (class, interface, method) — its d
 allowed-tools: Bash, Read
 ---
 
-# sym — lookup de symbole précis
+# sym — precise symbol lookup
 
-Au lieu de `grep` + ouvrir plusieurs fichiers (coûteux), interroge l'index thunder qui renvoie
-directement `fichier:ligne` + signature.
+Instead of `grep` + opening several files (expensive), query the thunder index, which returns
+`file:line` + signature directly.
 
-## Commandes
+## Commands
 
 ```bash
 ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"
 ROOT="${CLAUDE_PROJECT_DIR}"
 
-# Définition d'un type ou d'une méthode (nom exact)
+# Definition of a type or method (exact name)
 node "$ENG" sym def <Name> "$ROOT"
 
-# Références : types qui mentionnent <Name> dans leurs signatures, champs ou extends/implements
+# References: types that mention <Name> in their signatures, fields, or extends/implements
 node "$ENG" sym refs <Name> "$ROOT"
 ```
 
 ## Usage
 
-1. Lance `sym def` pour situer la définition → tu obtiens `class/interface/method  fichier:ligne`.
-2. Lance `sym refs` pour les usages → liste de `Type  fichier:ligne`.
-3. **N'ouvre le `.java` (Read avec offset sur la ligne) que si l'utilisateur a besoin du corps** —
-   sinon la signature de l'index suffit.
+1. Run `sym def` to locate the definition → you get `class/interface/method  file:line`.
+2. Run `sym refs` for usages → a list of `Type  file:line`.
+3. **Open the `.java` (Read with an offset on the line) only if the user needs the body** — otherwise the
+   index signature is enough.
 
-Pour une résolution sémantique fine (surcharges, génériques, héritage profond), c'est une limite connue
-du lookup statique ; signale-le plutôt que de deviner.
+For fine semantic resolution (overloads, generics, deep inheritance), this is a known limit of static
+lookup; flag it rather than guessing.

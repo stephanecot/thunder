@@ -4,59 +4,61 @@ description: Rebuild or refresh thunder's index of a Java/Spring project. Refres
 allowed-tools: Bash, Task, AskUserQuestion
 ---
 
-# reindex — tenir l'index à jour
+# reindex — keep the index up to date
 
-Deux couches, deux régimes : la **technique** est gratuite et déterministe ; la **fonctionnelle** coûte
-des tokens (inférence) → elle est **budgétée et jamais lancée en silence**.
+Two layers, two regimes: the **technical** one is free and deterministic; the **functional** one costs
+tokens (inference) → it is **budgeted and never run silently**.
 
 ```bash
 ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"
 ROOT="${CLAUDE_PROJECT_DIR}"
 ```
 
-## Modes (lis `$ARGUMENTS`)
+## Modes (read `$ARGUMENTS`)
 
-- **`--tech`** : technique seul. `node "$ENG" build "$ROOT"`. Gratuit, instantané. **STOP ici.**
-- **`--full`** : `node "$ENG" reset-functional "$ROOT"` (tout redevient à inférer), puis suis le flux ci-dessous.
-- **(défaut)** : incrémental — suis le flux ci-dessous.
+- **`--tech`**: technical only. `node "$ENG" build "$ROOT"`. Free, instant. **STOP here.**
+- **`--full`**: `node "$ENG" reset-functional "$ROOT"` (everything becomes stale), then follow the flow below.
+- **(default)**: incremental — follow the flow below.
 
-## Flux d'enrichissement fonctionnel
+## Functional enrichment flow
 
-1. **Rafraîchir + lister le périmé** :
+1. **Refresh + list stale**:
    ```bash
    node "$ENG" build "$ROOT" >/dev/null
    node "$ENG" stale --json "$ROOT"
    ```
-   → tableau JSON `[{id, reason, hash}, …]`. Si **vide**, dis « couche fonctionnelle déjà à jour » et arrête.
+   → JSON array `[{id, reason, hash}, …]`. If **empty**, say "functional layer already up to date" and stop.
 
-2. **Budget & consentement** : budget par défaut = **10 contextes/run**. Si le nombre de contextes périmés
-   dépasse le budget (ou semble coûteux), **demande confirmation** (AskUserQuestion) avant de continuer, en
-   indiquant combien seront inférés. N'infère jamais des centaines de contextes sans accord explicite.
+2. **Budget & consent**: default budget = **10 contexts/run**. If the number of stale contexts exceeds the
+   budget (or looks costly), **ask for confirmation** (AskUserQuestion) before continuing, stating how many
+   will be inferred. Never infer hundreds of contexts without explicit approval.
 
-3. **Pour chaque contexte retenu** (jusqu'au budget) :
-   a. Récupère l'evidence pack : `node "$ENG" evidence <id> "$ROOT"` (JSON sur stdout).
-   b. Délègue au sous-agent **cartographer** (Task, `subagent_type: "thunder-java-cartographer"`) en lui passant ce JSON.
-      Il renvoie **du JSON strict** (name, purpose, capabilities, business_rules, intents, glossary, confidence).
-   c. Réinjecte : passe ce JSON sur stdin de
-      `node "$ENG" set-functional <id> "$ROOT"`.
-   - Tu peux traiter plusieurs contextes **en parallèle** (plusieurs Task en un seul message), plafonné à ~6.
+3. **For each retained context** (up to the budget):
+   a. Get the evidence pack: `node "$ENG" evidence <id> "$ROOT"` (JSON on stdout).
+   b. Delegate to the **thunder-java-cartographer** sub-agent (Task, `subagent_type: "thunder-java-cartographer"`)
+      passing it that JSON. It returns **strict JSON** (name, purpose, capabilities, business_rules, intents,
+      glossary, confidence).
+   c. Pipe it back into `node "$ENG" set-functional <id> "$ROOT"` (stdin).
+   - You can process several contexts **in parallel** (several Task calls in one message), capped at ~6.
 
-4. **Rollup module** (rend `index.yaml` navigable fonctionnellement) :
+4. **Module rollup** (makes `index.yaml` navigable functionally):
    ```bash
    node "$ENG" stale-modules --json "$ROOT"
    ```
-   Pour chaque module retourné : `node "$ENG" module-evidence <module> "$ROOT"` (JSON des purposes/capabilities
-   de ses contextes) → délègue au **thunder-java-cartographer** (mode rollup → renvoie `{theme, keywords}` en **anglais**) →
-   `node "$ENG" set-module-functional <module> "$ROOT"` (stdin). Ces appels sont petits (texte déjà inféré, pas
-   de source) → traite-les en parallèle, plafonné.
+   For each returned module: `node "$ENG" module-evidence <module> "$ROOT"` (JSON of its contexts'
+   purposes/capabilities) → delegate to **thunder-java-cartographer** (rollup mode → returns `{theme, keywords}`
+   in **English**) → `node "$ENG" set-module-functional <module> "$ROOT"` (stdin). These calls are small
+   (already-inferred text, no source) → run them in parallel, capped.
 
-5. **Synthèse** : indique combien de contextes et de modules ont été (ré)inférés, et ce qui reste périmé (si budget atteint).
+5. **Summary**: report how many contexts and modules were (re)inferred, and what remains stale (if the
+   budget was reached).
 
-> **Langue : tout le contenu écrit dans l'index (name, purpose, capabilities, business_rules, intents, theme,
-> keywords) doit être en ANGLAIS.** Le thunder-java-cartographer s'en charge ; n'écris jamais de français dans l'index.
+> **Language: all text written into the index (name, purpose, capabilities, business_rules, intents, theme,
+> keywords) MUST be in ENGLISH.** The thunder-java-cartographer handles this; never write other languages
+> into the index.
 
-## Rappels
+## Reminders
 
-- Les `business_rules` du thunder-java-cartographer doivent **citer leur source** ; s'il renvoie du vide ou du non-JSON,
-  refais l'appel une fois, sinon marque le contexte `confidence: low` et continue.
-- Ne lis pas les `.java` toi-même ici : l'evidence pack contient déjà le source nécessaire.
+- The thunder-java-cartographer's `business_rules` must **cite their source**; if it returns empty or
+  non-JSON, retry once, otherwise mark the context `confidence: low` and continue.
+- Do not read `.java` files yourself here: the evidence pack already contains the source needed.

@@ -3,6 +3,7 @@ import { existsSync, rmSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from './lib/build.mjs';
+import { dump } from './lib/yaml.mjs';
 import { appendDirty, drainDirty } from './lib/cache.mjs';
 import {
   buildEvidence, staleContexts, setFunctional,
@@ -10,6 +11,32 @@ import {
 } from './lib/functional.mjs';
 
 // ---- commands -------------------------------------------------------------
+
+/** Deterministic retrieval: one payload = cards of matching contexts + matching endpoints. */
+function cmdAsk(root, query) {
+  if (!query) { console.error('usage: ask "<keywords>" <root>'); process.exit(1); }
+  const { model, functional } = build(root);
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const hit = (s) => terms.some((t) => (s || '').toLowerCase().includes(t));
+  const cards = [];
+  for (const c of model.contexts) {
+    const f = functional[c.id] || {};
+    const hay = [c.id, f.name || c.name, f.purpose || '', ...(f.capabilities || []), ...c.types.map((t) => t.n), ...c.endpoints.map((e) => e.path)].join(' ');
+    if (!hit(hay)) continue;
+    cards.push({
+      id: c.id, name: f.name || c.name, purpose: f.purpose || null,
+      ...(f.capabilities ? { capabilities: f.capabilities } : {}),
+      types: c.types.map((t) => t.n),
+      endpoints: c.endpoints.map((e) => `${e.verb} ${e.path}`),
+      beans: Object.keys(c.beans).length, entities: Object.keys(c.entities).length,
+      detail: `modules/${c.module}/${c.packages.join(',')}.yaml`,
+    });
+  }
+  const endpoints = model.endpoints
+    .filter((e) => hit(`${e.verb} ${e.path} ${e.fn} ${e.req || ''} ${e.resp || ''}`))
+    .map((e) => ({ verb: e.verb, path: e.path, fn: e.fn, ...(e.req ? { req: e.req } : {}), ...(e.resp ? { resp: e.resp } : {}) }));
+  console.log(dump({ query, matched_contexts: cards.length, cards, endpoints }));
+}
 
 function cmdBuild(root) {
   const t0 = process.hrtime.bigint();
@@ -223,6 +250,7 @@ if (flags.has('--selftest')) {
     case 'evidence': cmdEvidence(R(pos[2]), pos[1]); break;        // evidence <ctxId> [root]
     case 'set-functional': cmdSetFunctional(R(pos[2]), pos[1]); break; // set-functional <ctxId> [root]
     case 'sym': cmdSym(R(pos[3]), pos[1], pos[2]); break;          // sym <def|refs> <Name> [root]
+    case 'ask': cmdAsk(R(pos[2]), pos[1]); break;                 // ask "<keywords>" [root]
     default: console.error(`unknown command: ${cmd}`); process.exit(1);
   }
 }
