@@ -23,7 +23,7 @@ function cmdEnsure(root) {
   drainDirty(root);
   const r = build(root);
   if (r.total === 0) return; // not a Java/Maven project — stay silent (hook runs everywhere)
-  console.log(`thunder: index frais (${r.model.modules.length} modules, ${r.model.contexts.length} contextes, ${r.model.endpoints.length} endpoints). /thunder-java:thunder-java-codemap pour explorer.`);
+  console.log(`thunder: index frais (${r.model.modules.length} modules, ${r.model.contexts.length} contextes, ${r.model.endpoints.length} endpoints). /thunder-java:codemap pour explorer.`);
 }
 
 function cmdTouch(root, file) {

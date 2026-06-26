@@ -19,11 +19,11 @@ navigate a codebase while spending **2–3 orders of magnitude fewer tokens**.
 ## Installation
 
 ```bash
-# add the marketplace
-/plugin marketplace add /Users/stephanecottin/dev/proto/thunder
+# add the marketplace (from GitHub)
+/plugin marketplace add stephanecot/thunder
 
 # install the plugin you want
-/plugin install thunder-java
+/plugin install thunder-java@thunder
 ```
 
 See each plugin's README for details (e.g. [`plugins/thunder-java/README.md`](./plugins/thunder-java/README.md)).

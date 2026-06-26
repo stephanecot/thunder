@@ -14,10 +14,10 @@ token savings.
 | Type | Name | Role |
 |---|---|---|
 | Engine | `engine/thunder.mjs` (+ `lib/`) | WALK → LEX → PARSE → DERIVE → EMIT; incremental cache; functional layer |
-| Skill | `/thunder-java:thunder-java-codemap` | explore structure via the index (modules, contexts, endpoints, beans, entities) |
-| Skill | `/thunder-java:thunder-java-sym` | locate a symbol (def / refs) without reading sources |
-| Skill | `/thunder-java:thunder-java-reindex` | refresh the index; re-infer business meaning (budgeted); `--full` / `--tech` |
-| Skill | `/thunder-java:thunder-java-grok` | answer a business/technical question (capped, seeded fan-out) |
+| Skill | `/thunder-java:codemap` | explore structure via the index (modules, contexts, endpoints, beans, entities) |
+| Skill | `/thunder-java:sym` | locate a symbol (def / refs) without reading sources |
+| Skill | `/thunder-java:reindex` | refresh the index; re-infer business meaning (budgeted); `--full` / `--tech` |
+| Skill | `/thunder-java:grok` | answer a business/technical question (capped, seeded fan-out) |
 | Agent | `thunder-java-cartographer` (Haiku) | infer the functional layer, grounded on an evidence pack (strict JSON) |
 | Hooks | SessionStart / PostToolUse | keep the index fresh without ever spending tokens silently |
 
@@ -41,8 +41,8 @@ sensitive to method bodies. All index content is written in **English**, whateve
 ## Install (via the marketplace)
 
 ```bash
-/plugin marketplace add /Users/stephanecottin/dev/proto/thunder
-/plugin install thunder-java
+/plugin marketplace add stephanecot/thunder
+/plugin install thunder-java@thunder
 ```
 
 Hooks index the project on session start and keep the index up to date on every edit.

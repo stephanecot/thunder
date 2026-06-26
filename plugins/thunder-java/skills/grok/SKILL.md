@@ -1,5 +1,5 @@
 ---
-name: thunder-java-grok
+name: grok
 description: Answer a question about what a Java/Spring codebase does or how it works (business or technical), token-minimally, using thunder's index and bounded fan-out. Use for "how does the auth work", "where is X handled", "what does the billing module do", "trace the flow of Y". Seeds sub-agents with index slices so they don't re-explore from scratch.
 allowed-tools: Read, Grep, Bash, Task
 ---
@@ -39,5 +39,5 @@ ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${CLAUDE_PROJECT_DIR}"
 - Ne lis jamais un module entier de `.java`. Préfère toujours shard → puis fan-out ciblé.
 - Le coût du fan-out est réel (les sous-agents consomment des tokens) : plafonne, et n'en lance que si l'index
   ne suffit pas. Pour une question de pure structure, l'index seul répond.
-- Si la couche fonctionnelle est absente (`purpose: null`) ou `functional_stale`, propose `/thunder-java:thunder-java-reindex`
+- Si la couche fonctionnelle est absente (`purpose: null`) ou `functional_stale`, propose `/thunder-java:reindex`
   avant de répondre à une question franchement métier.
