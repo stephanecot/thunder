@@ -1,0 +1,22 @@
+id: data/2026-04-15-primary-datastore-postgres
+title: "Postgres as the primary datastore"
+type: technical
+status: active
+domain: data
+date: 2026-04-15
+authors:
+  - stephane
+context: "Need a single relational store for transactional data across services."
+decision: "Standardize on PostgreSQL for all transactional persistence."
+rationale: "Mature, supports RLS and JSONB, strong ecosystem and operational know-how."
+consequences:
+  - "Services avoid bespoke datastores unless a clear access pattern justifies one."
+alternatives:
+  - {choice: "MySQL", rejected_because: "weaker row-level-security and JSONB support"}
+tags:
+  - postgres
+  - database
+  - persistence
+conflicts_with: []
+evidence: []
+confidence: high

@@ -13,7 +13,7 @@
       "name": "thunder-java",
       "source": "./dist/copilot/thunder-java",
       "description": "Token-minimal comprehension, exploration and navigation of Java/Spring Boot codebases (hierarchical YAML index: technical + inferred functional layer).",
-      "version": "0.1.8",
+      "version": "0.1.9",
       "keywords": [
         "java",
         "spring-boot",
@@ -26,7 +26,7 @@
       "name": "thunder-angular",
       "source": "./dist/copilot/thunder-angular",
       "description": "Token-minimal comprehension, exploration and navigation of Angular/TypeScript codebases (components, services, routes, NgModules, DI graph + inferred functional layer).",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "keywords": [
         "angular",
         "typescript",
@@ -39,13 +39,60 @@
       "name": "thunder-python",
       "source": "./dist/copilot/thunder-python",
       "description": "Token-minimal comprehension, exploration and navigation of Python codebases — FastAPI / Flask / Django / plain (routes, models, classes, DI, framework-aware + inferred functional layer).",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "keywords": [
         "python",
         "fastapi",
         "flask",
         "django",
         "codebase",
+        "index",
+        "token-efficient"
+      ]
+    },
+    {
+      "name": "thunder-node",
+      "source": "./dist/copilot/thunder-node",
+      "description": "Token-minimal comprehension, exploration and navigation of Node.js backend codebases — Express / Fastify / NestJS (controllers, services, HTTP endpoints, DI graph, framework-aware + inferred functional layer).",
+      "version": "0.0.2",
+      "keywords": [
+        "nodejs",
+        "express",
+        "fastify",
+        "nestjs",
+        "typescript",
+        "codebase",
+        "index",
+        "token-efficient"
+      ]
+    },
+    {
+      "name": "thunder-react",
+      "source": "./dist/copilot/thunder-react",
+      "description": "Token-minimal comprehension, exploration and navigation of React.js codebases (function/class components, custom hooks, React Router routes, prop & dependency graph + inferred functional layer).",
+      "version": "0.0.1",
+      "keywords": [
+        "react",
+        "reactjs",
+        "jsx",
+        "tsx",
+        "typescript",
+        "react-router",
+        "codebase",
+        "index",
+        "token-efficient"
+      ]
+    },
+    {
+      "name": "thunder-mind",
+      "source": "./dist/copilot/thunder-mind",
+      "description": "Framework-agnostic shared project-decision index: capture architectural / technical / functional decisions as committed YAML and recall them (inverted-index + BM25, bounded alignment brief) so two developers' AIs reuse the same decisions instead of diverging.",
+      "version": "0.1.0",
+      "keywords": [
+        "decisions",
+        "adr",
+        "knowledge",
+        "alignment",
         "index",
         "token-efficient"
       ]

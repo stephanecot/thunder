@@ -52,3 +52,17 @@ which business rule.** A sub-agent costs ~**11k tokens of fixed overhead**; answ
 ## Notes
 - `functional_stale: true` or `purpose: null` → suggest `/thunder-java-reindex`.
 - For a precise symbol (definition/references): `/thunder-java-sym`.
+## Tier-3 — persist a pure-index answer (this is what fills the answer cache)
+`ask` already CHECKS the answer cache first and relays a fresh prior answer at ~0 tokens — but the cache
+only ever HITS if something WRITES to it. After you answered a question **purely from the index** (no
+source-body read, no guessing), persist it so the next identical/paraphrased question is free:
+
+```
+printf '%s' "<your answer text>" | node "${PLUGIN_ROOT}/engine/thunder.mjs" \
+  cache-answer --q "<the user's question>" --ctx <ctxId[,ctxId...]> --scope <archi|routes|where|flow|feature|endpoint> "${PWD}"
+```
+
+- `--ctx` = the context id(s) your answer relied on (the `id` of each card you read). Freshness is gated
+  on their `src_hash`, so the entry **auto-invalidates** when that source changes (never stale).
+- Persist ONLY deterministic, index-derived answers — skip it if you read source files or made a judgment
+  call. This is the only thing that makes Tier-3 pay off across repeated/teammate questions.

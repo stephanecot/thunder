@@ -1,0 +1,22 @@
+id: api/2026-03-01-rest-resource-naming
+title: "REST resource naming convention"
+type: convention
+status: active
+domain: api
+date: 2026-03-01
+authors:
+  - stephane
+context: "Teams were naming endpoints inconsistently (singular vs plural, verbs in paths)."
+decision: "Use plural nouns for collections and no verbs in paths; actions are sub-resources."
+rationale: "Predictable, REST-aligned URLs reduce friction for API consumers."
+consequences:
+  - "Existing verb-style endpoints must be migrated behind a deprecation window."
+alternatives:
+  - {choice: "RPC-style verbs", rejected_because: "inconsistent with REST tooling and caching"}
+tags:
+  - rest
+  - api
+  - naming
+conflicts_with: []
+evidence: []
+confidence: high

@@ -1,0 +1,22 @@
+id: data/2026-06-10-evaluate-mysql-migration
+title: "Evaluate migrating reporting to MySQL"
+type: technical
+status: proposed
+domain: data
+date: 2026-06-10
+authors:
+  - other-dev
+context: "A second developer proposed MySQL for the reporting subsystem."
+decision: "Pilot MySQL for the reporting datastore and compare with Postgres."
+rationale: "Team familiarity with MySQL replication for read-heavy reporting."
+consequences:
+  - "Introduces a second relational engine to operate."
+alternatives: []
+tags:
+  - mysql
+  - database
+  - reporting
+conflicts_with:
+  - data/2026-04-15-primary-datastore-postgres
+evidence: []
+confidence: low

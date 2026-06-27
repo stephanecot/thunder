@@ -1,3 +1,12 @@
+> ## 🟢 ROUND 1 VALIDÉ · 🟡 ROUND 2 : R2.1 VALIDÉ, R2.2 INCOMPLET · 🟡 ROUND 3 À FAIRE
+> Re-test de la dernière version sur `aura/frontend` (rebuild --force, DEBUG=on, commande `ask`) :
+> - **R2.1 scopeGuard** ✅ : `administration/users` → `guards: ["() => scopeGuard('aura:admin')"]`.
+> - **R2.2 HTTP** ⚠️ INCOMPLET sur le pattern réel `httpResource(() => ({url, method, body}))` :
+>   verbes tous `GET` (POST/DELETE ratés) et `url: null` sur KnowledgeService/UserService/Tag*Service.
+>   Le fix ne couvre que `http.get/post/delete(...)` à URL littérale. → ROUND 3 ci-dessous.
+> Trace `ask` (DEBUG) : chat 91%, routes+guards 92%, documents 89%, AuthService 94%, user-admin 49%
+> (moyenne ~83% ; le chemin `ask` inline ~9–16× moins cher que le source brut).
+> 
 > ## 🟢 ÉTAT — ROUND 1 FAIT ET VALIDÉ · 🟢 ROUND 2 FAIT ET VALIDÉ
 > Round 2 appliqué (branche `tier3-shared-layer`) : R2.1 gardes en appel-fabrique
 > (`scopeGuard('aura:admin')`) captées via split profondeur-conscient (args préservés, multi-arg) ;
@@ -59,6 +68,46 @@ Test : un service fixture avec `http.get(\`${env.apiUrl}/x\`)`, `http.post(\`${e
 
 Garde-fous inchangés (rétro-compat cards/détail, evidence hashes/reindex intacts, `node --test` vert,
 + les 2 tests fixtures ci-dessus).
+
+---
+
+# ROUND 3 — HTTP via `httpResource` config-object (R2.2 incomplet sur code Angular moderne)
+
+Mesuré sur `aura/frontend` après R2.2 : les services réels n'utilisent PAS `this.http.post(url)` mais
+le pattern **`httpResource(() => ({ url, method, body }))`** (signals). Le fix R2.2 ne le décode pas :
+`KnowledgeService` (3 ops : list GET, upload POST, delete DELETE) sort `[{GET,null}×3]` ;
+idem `UserService`, `TagCreateService` (POST attendu → sort GET). Seul un GET à URL littérale simple
+(`TranslocoLoader` → `/assets/i18n/{lang}.json`) est correct. Deux causes précises :
+
+## R3.1 — [P1] Verbe : lire la propriété `method:` du config-object
+Source type (`knowledge.service.ts`) :
+```ts
+private deleteResource = httpResource<void>(() => ({ url: `${this.apiUrl}/${id}`, method: 'DELETE' }));
+private uploadResource = httpResource<Document>(() => ({ url: this.apiUrl, method: 'POST', body }));
+private documentsResource = httpResource<Document[]>(() => ({ url: this.apiUrl }));   // GET implicite
+```
+Le fix mappe `httpResource(...)` → GET en dur. Il faut, quand l'argument est (ou retourne) un objet
+littéral, lire `method:\s*['"](\w+)['"]` dedans ; absent → GET. Couvre aussi la forme
+`httpResource(url, { method })`.
+
+## R3.2 — [P1] URL : suivre l'indirection de champ (`this.apiUrl`)
+L'URL n'est pas un littéral inline mais un **champ de classe** :
+```ts
+private readonly apiUrl = `${environment.apiUrl}/documents`;
+...url: this.apiUrl ... url: `${this.apiUrl}/${id}`
+```
+Le résolveur R2.2 gère `${environment.apiUrl}/x` inline mais pas l'indirection `this.<field>` quand le
+champ vaut lui-même un gabarit. Fix : construire une petite table des champs-string de la classe
+(`name -> littéral résolu`, en réutilisant la normalisation `${environment.apiUrl}` → `{apiUrl}`), puis
+substituer `this.<field>` et `${this.<field>}` à la résolution d'URL. Attendu :
+`KnowledgeService.http` = `[{GET,{apiUrl}/documents},{POST,{apiUrl}/documents},{DELETE,{apiUrl}/documents/{id}}]`.
+
+## Acceptance R3
+- `KnowledgeService` sort 3 verbes distincts (GET/POST/DELETE) et URLs `{apiUrl}/documents[/{id}]`.
+- Fixture `httpResource(() => ({url: this.base, method:'POST'}))` avec `base = \`${environment.apiUrl}/x\``
+  → `{POST,{apiUrl}/x}`. Ne PAS régresser `http.post(\`${env.apiUrl}/y\`)` (R2.2) ni le GET littéral.
+- Re-run `ask "documents knowledge service http endpoints"` (DEBUG) : la réponse cite POST upload +
+  DELETE, pas 3 GET. Garde-fous inchangés.
 
 ---
 
