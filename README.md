@@ -11,6 +11,7 @@ navigate a codebase while spending **2–3 orders of magnitude fewer tokens**.
 |---|---|---|
 | [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | ✅ available |
 | [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | ✅ available |
+| [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | ✅ available |
 
 > Shared architecture: pure Node.js engine (zero dependencies), cross-platform, sharded YAML index,
 > incremental cache, hooks that never spend tokens silently. Each plugin writes its index to its own

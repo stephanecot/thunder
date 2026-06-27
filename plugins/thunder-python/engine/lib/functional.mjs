@@ -1,0 +1,124 @@
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { shortHash } from './hash.mjs';
+import { cacheDir, ensureDir } from './cache.mjs';
+
+const STORE = (root) => join(cacheDir(root), 'functional.json');
+const PER_FILE_CAP = 4000;
+const TOTAL_CAP = 16000;
+
+export function loadFunctional(root) {
+  const p = STORE(root);
+  if (!existsSync(p)) return {};
+  try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return {}; }
+}
+
+export function saveFunctional(root, store) {
+  ensureDir(cacheDir(root));
+  writeFileSync(STORE(root), JSON.stringify(store));
+}
+
+/** Evidence pack for one Python package context (structural facts + real source of its .py files). */
+export function buildEvidence(ctx, root) {
+  const sources = {};
+  let total = 0;
+  for (const file of ctx.files) {
+    if (total >= TOTAL_CAP) { sources._truncated = true; break; }
+    try {
+      let src = readFileSync(join(root, file), 'utf8');
+      if (src.length > PER_FILE_CAP) src = src.slice(0, PER_FILE_CAP) + '\n# …truncated…';
+      sources[file] = src;
+      total += src.length;
+    } catch { /* ignore */ }
+  }
+  return {
+    id: ctx.id, project: ctx.project, package: ctx.package, framework: ctx.framework,
+    routes: ctx.routes.map((r) => ({ verb: r.verb, path: r.path, fn: r.fn, flow: r.flow })),
+    models: ctx.models,
+    classes: ctx.classes.map((c) => ({ n: c.n, bases: c.bases, methods: c.methods })),
+    di: ctx.di,
+    sources,
+  };
+}
+
+export const evidenceHash = (pack) => shortHash(JSON.stringify(pack));
+
+const FUNC_FIELDS = ['name', 'purpose', 'capabilities', 'business_rules', 'intents', 'glossary', 'confidence'];
+
+export function staleContexts(model, root, functional) {
+  const out = [];
+  for (const ctx of model.contexts) {
+    const f = functional[ctx.id];
+    const hash = evidenceHash(buildEvidence(ctx, root));
+    if (!f) out.push({ id: ctx.id, reason: 'missing', hash });
+    else if (f.evidence_hash !== hash) out.push({ id: ctx.id, reason: 'changed', hash });
+  }
+  return out;
+}
+
+export function setFunctional(root, model, ctxId, data) {
+  const ctx = model.contexts.find((c) => c.id === ctxId);
+  if (!ctx) throw new Error(`unknown context: ${ctxId}`);
+  const store = loadFunctional(root);
+  const entry = { evidence_hash: evidenceHash(buildEvidence(ctx, root)), src_hash: ctx.src_hash };
+  for (const k of FUNC_FIELDS) if (data[k] !== undefined) entry[k] = data[k];
+  store[ctxId] = entry;
+  saveFunctional(root, store);
+  return entry;
+}
+
+// ---- project-level rollup ----
+
+const STOP = new Set((
+  'the of and to in for with a an or on at by is are this that from into your you their our list look ' +
+  'le la les un une des de du et a en pour par sur avec ou ce cette ces est sont dans qui que se ne pas plus'
+).split(' '));
+
+export function moduleKeywords(ctxIds, functional, max = 6) {
+  const freq = new Map();
+  for (const id of ctxIds) {
+    const f = functional[id];
+    if (!f) continue;
+    const text = [f.purpose || '', ...(f.capabilities || [])].join(' ').toLowerCase();
+    for (const w of text.split(/[^a-z0-9]+/)) { if (w.length < 3 || STOP.has(w)) continue; freq.set(w, (freq.get(w) || 0) + 1); }
+  }
+  return [...freq.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, max).map(([w]) => w);
+}
+
+export function moduleContextHash(model, moduleName, functional) {
+  const parts = [];
+  for (const c of model.contexts) {
+    if (c.module !== moduleName) continue;
+    const f = functional[c.id];
+    if (f) parts.push(`${c.id}|${f.purpose || ''}|${(f.capabilities || []).join(',')}`);
+  }
+  parts.sort();
+  return parts.length ? shortHash(parts.join('\n')) : null;
+}
+
+export const loadModuleFunctional = (functional) => functional.__modules__ || {};
+
+export function setModuleFunctional(root, model, moduleName, data) {
+  const store = loadFunctional(root);
+  if (!store.__modules__) store.__modules__ = {};
+  const entry = { context_hash: moduleContextHash(model, moduleName, store) };
+  if (data.theme !== undefined) entry.theme = data.theme;
+  if (data.keywords !== undefined) entry.keywords = data.keywords;
+  store.__modules__[moduleName] = entry;
+  saveFunctional(root, store);
+  return entry;
+}
+
+export function staleModules(model, root, functional) {
+  const byMod = {};
+  for (const c of model.contexts) (byMod[c.module] ||= []).push(c.id);
+  const out = [];
+  for (const m of Object.keys(byMod).sort()) {
+    const hash = moduleContextHash(model, m, functional);
+    if (!hash) continue;
+    const e = (functional.__modules__ || {})[m];
+    if (!e) out.push({ module: m, reason: 'missing', hash });
+    else if (e.context_hash !== hash) out.push({ module: m, reason: 'changed', hash });
+  }
+  return out;
+}

@@ -1,11 +1,10 @@
-> ## ⏩ ÉTAT — COMMENCE ICI
-> Rounds 1→4 **faits et validés**. Bench 20 requêtes : thunder économise **73–92 %** des
-> tokens vs raw (4–12× moins cher), correctness OK. **Travail ACTIF = `# ROUND 5` en bas**
-> (routage de skill : 2 types de requêtes prennent un chemin sous-optimal). Le reste = historique.
->
-> ⚠️ Rappels d'exploitation : purger `cache.ndjson` avant de re-mesurer (sinon vieux parse
-> réutilisé). Après tout reparse, re-inférer les contextes `changed` via
-> `/thunder-java:thunder-java-reindex` (incrémental, coût minime).
+> ## ✅ ÉTAT — ROUNDS 1→5 FAITS ET VALIDÉS
+> Optimisation terminée. Bench 20 requêtes : **19/20 gagnantes, 92 % d'économie** (≈12×),
+> coût thunder plat même après ajout d'un gros feature. Correctness OK (12 endpoints, `req`
+> propre). Tous les bugs R5.5 corrigés et vérifiés :
+> - `dirty.list` vidé après build ✅ · cache auto-invalidé si le moteur change (+ `build --force`) ✅
+> - `ask` whiff → fallback `project-brief` ✅ · table de routage (sym/brief/endpoints) dans les skills ✅
+> Rien d'actif. Tout le contenu ci-dessous = historique des rounds.
 
 ---
 
