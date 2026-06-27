@@ -1,10 +1,64 @@
-> ## 🟡 ÉTAT — ROUND 1 À FAIRE (bench initial mesuré, corrections non appliquées)
-> Bench initial sur un projet Angular réel (`aura/frontend` : 1 projet `ai-chat`, 63 fichiers
-> `.ts`, 5 contextes, 10 routes). Après correction de l'overhead de harnais, thunder gagne
-> déjà **−52 % de tokens de données** (15 072 vs 31 590 sur 5 requêtes) — MAIS 4 trous nets :
-> 1 requête à parité (chat, +6 %) à cause de la **granularité des contextes**, et 3 trous de
-> JUSTESSE (guards/interceptors fonctionnels, gardes de route, endpoints HTTP). Détail + plan
-> ci-dessous. Rien n'est encore appliqué.
+> ## 🟢 ÉTAT — ROUND 1 FAIT ET VALIDÉ · 🟢 ROUND 2 FAIT ET VALIDÉ
+> Round 2 appliqué (branche `tier3-shared-layer`) : R2.1 gardes en appel-fabrique
+> (`scopeGuard('aura:admin')`) captées via split profondeur-conscient (args préservés, multi-arg) ;
+> R2.2 verbe HTTP réel par appel + nom de champ HttpClient suivi (`private api = inject(HttpClient)`)
+> + URLs de gabarit normalisées (`${environment.apiUrl}/documents/${id}` → `{apiUrl}/documents/{id}`,
+> plus de `null`/tout-`GET`). Tests ajoutés (feature.test : garde-fabrique multi-arg + verbe/URL non-http).
+> Sweep étendu à ≥50 questions → angular **84/84 (100%), 98% saved**. Round 1+2 = historique ci-dessous.
+> Round 1 appliqué et re-mesuré sur `aura/frontend` (12 contextes après granularité, reindex
+> fonctionnel des 10 contextes touchés). Résultats :
+> - **#1 granularité** ✅ : `features` éclaté en 10 contextes ; **Q3 chat passe de +6 % à −41 %
+>   vs raw** (data tokens 6 826 → 3 808, −44 %), confidence `high`.
+> - **#2 guards/interceptors fonctionnels** ✅ : `sym def authGuard` / `sym refs AuthService`
+>   listent désormais `authGuard (injects AuthService)` et `authInterceptor` est un symbole.
+> - **#3 gardes de route** ✅ partiel : `routes.yaml` porte `guards: [authGuard]` MAIS rate les
+>   gardes en **appel-fabrique** `scopeGuard('aura:admin')` (route `administration/users` ressort
+>   sans garde). → R2.1.
+> - **#4 facette HTTP** ⚠️ partiel : le bloc `http:` existe et compte les appels, MAIS **verbes
+>   tous émis `GET`** (faux : upload=POST, delete=DELETE) et **`url: null`** (non résolue). → R2.2.
+> Agrégat : −49 % vs raw, désormais à JUSTESSE complète (avant, le coût plus bas venait en partie
+> de réponses incomplètes). Reste le Round 2 ci-dessous. Tout le Round 1 = historique.
+
+---
+
+# ROUND 2 — corriger les 2 fixes partiels du Round 1 (mesurés sur `aura/frontend`)
+
+## R2.1 — [P1, JUSTESSE] Gardes en appel-fabrique (`scopeGuard('aura:admin')`)
+Le fix #3 capte les gardes-identifiants nus mais la regex
+`can(?:Activate|Match|…)\s*:\s*\[([^\]]*)\]` puis le split par identifiant rate les éléments
+qui sont des **appels de fonction-fabrique** : `canActivate: [scopeGuard('aura:admin')]`. Preuve
+mesurée : route `administration/users` ressort SANS garde alors qu'elle a `scopeGuard('aura:admin')`.
+Fix : en parsant le contenu du tableau de gardes, garder l'expression entière par élément (split
+profondeur-conscient sur la virgule de premier niveau, pour ne pas couper dans les args), et pour
+chaque élément émettre le nom de base + ses args éventuels, p.ex. `scopeGuard('aura:admin')` →
+`{ guard: 'scopeGuard', args: ["aura:admin"] }` (ou au minimum la chaîne brute `scopeGuard('aura:admin')`).
+Test : route avec `canActivate: [authGuard, scopeGuard('aura:admin')]` → 2 gardes émises, la 2e
+avec son argument.
+
+## R2.2 — [P1, JUSTESSE] Verbe + URL des appels HTTP
+Le fix #4 émet le bloc `http:` mais (a) **classe tout en `GET`** et (b) laisse **`url: null`**.
+Mesuré : `KnowledgeService` (3 appels : list GET, upload POST, delete DELETE) sort
+`[{verb: GET, url: null} × ?]`. Deux corrections dans l'extraction (parser/derive) :
+- **Verbe** : lire le verbe réel de chaque appel — `http.post(...)` → POST, `http.delete(...)`
+  → DELETE, `httpResource(...)` → typiquement GET sauf option `method`. Aujourd'hui le verbe semble
+  codé en dur / pris sur le 1er match. Mappe par méthode appelée.
+- **URL** : résoudre les littéraux de gabarit. Cas dominant Angular :
+  `` `${environment.apiUrl}/documents` `` et `` `${this.base}/${id}` ``. Émettre la forme
+  normalisée (`{apiUrl}/documents`, `{apiUrl}/documents/{id}`) plutôt que `null` ; pour un
+  `httpResource(() => \`...\`)`, aller chercher le littéral dans le corps de la lambda. Si vraiment
+  non résoluble, garder `null` mais ne PAS prétendre `GET`.
+Test : un service fixture avec `http.get(\`${env.apiUrl}/x\`)`, `http.post(\`${env.apiUrl}/x\`, body)`,
+`http.delete(\`${env.apiUrl}/x/${id}\`)` → `http:` = `[{GET,{apiUrl}/x},{POST,{apiUrl}/x},{DELETE,{apiUrl}/x/{id}}]`.
+
+## Acceptance criteria R2 (re-mesurer)
+- Q routes : `administration/users` liste `scopeGuard('aura:admin')` SANS lire de `.ts`.
+- Q documents/HTTP : les 3 appels de `KnowledgeService` sortent avec le bon verbe (GET/POST/DELETE)
+  et une URL normalisée (`{apiUrl}/documents[/...]`) ; la requête repasse en confidence `high`
+  (était `medium` faute d'endpoints).
+- Pas de régression sur le bench data-tokens du Round 1 (Q3 reste ≤ 4 000 ; agrégat ≤ 50 % du raw).
+
+Garde-fous inchangés (rétro-compat cards/détail, evidence hashes/reindex intacts, `node --test` vert,
++ les 2 tests fixtures ci-dessus).
 
 ---
 
