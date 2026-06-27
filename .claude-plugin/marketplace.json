@@ -10,14 +10,14 @@
       "name": "thunder-java",
       "source": "./plugins/thunder-java",
       "description": "Token-minimal comprehension, exploration and navigation of Java/Spring Boot codebases (hierarchical YAML index: technical + inferred functional layer).",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "keywords": ["java", "spring-boot", "codebase", "index", "token-efficient"]
     },
     {
       "name": "thunder-angular",
       "source": "./plugins/thunder-angular",
       "description": "Token-minimal comprehension, exploration and navigation of Angular/TypeScript codebases (components, services, routes, NgModules, DI graph + inferred functional layer).",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "keywords": ["angular", "typescript", "codebase", "index", "token-efficient"]
     }
   ]

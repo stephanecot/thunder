@@ -1,12 +1,17 @@
-import { readFileSync, existsSync } from 'node:fs';
-import { join, basename, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, basename, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { walkTs } from './walk.mjs';
 import { parseFile } from './parser.mjs';
 import { derive } from './derive.mjs';
 import { emit } from './emit.mjs';
 import { shortHash } from './hash.mjs';
-import { readCache, writeCache, readManifest, writeManifest } from './cache.mjs';
+import { readCache, writeCache, readManifest, writeManifest, drainDirty } from './cache.mjs';
 import { loadFunctional } from './functional.mjs';
+
+// Fingerprint of the parse-affecting engine code — invalidates cache.ndjson on an engine change.
+const LIB = dirname(fileURLToPath(import.meta.url));
+const ENGINE_HASH = shortHash(['lexer.mjs', 'parser.mjs'].map((f) => { try { return readFileSync(join(LIB, f), 'utf8'); } catch { return ''; } }).join('|'));
 
 /** Read Angular workspace projects (name + sourceRoot) from angular.json. */
 function projectsOf(root) {
@@ -36,13 +41,15 @@ function locate(rel, projects) {
 }
 
 /** Full incremental pipeline: WALK → PARSE (changed only) → DERIVE → EMIT. Returns the model. */
-export function build(root) {
+export function build(root, opts = {}) {
   const files = walkTs(root);
   const projects = projectsOf(root);
-  const prevCache = readCache(root);
   const manifest = readManifest(root);
+  const stale = opts.force || manifest.engineHash !== ENGINE_HASH;
+  const prevCache = stale ? new Map() : readCache(root);
+  const prevFiles = stale ? {} : manifest.files;
   const cache = new Map();
-  const newManifest = { files: {}, shards: {} };
+  const newManifest = { engineHash: ENGINE_HASH, files: {}, shards: {} };
   let parsed = 0, reused = 0, errors = 0;
 
   for (const rel of files) {
@@ -51,7 +58,7 @@ export function build(root) {
     try { content = readFileSync(abs, 'utf8'); } catch { continue; }
     const h = shortHash(content);
     const { project, feature } = locate(rel, projects);
-    const prev = manifest.files[rel];
+    const prev = prevFiles[rel];
 
     if (prev && prev.hash === h && !prev.parse_error && prevCache.has(rel)) {
       const fact = prevCache.get(rel);
@@ -79,5 +86,6 @@ export function build(root) {
   const functional = loadFunctional(root);
   const { changed } = emit(root, model, functional);
   writeManifest(root, newManifest);
-  return { total: files.length, parsed, reused, errors, changed, model, functional };
+  drainDirty(root); // the build reconciled everything → clear the dirty queue (no unbounded growth)
+  return { total: files.length, parsed, reused, errors, changed, model, functional, engineBust: stale };
 }

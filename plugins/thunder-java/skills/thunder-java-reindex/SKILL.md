@@ -29,9 +29,11 @@ ROOT="${CLAUDE_PROJECT_DIR}"
    ```
    → JSON array `[{id, reason, hash}, …]`. If **empty**, say "functional layer already up to date" and stop.
 
-2. **Budget & consent**: default budget = **10 contexts/run**. If the number of stale contexts exceeds the
-   budget (or looks costly), **ask for confirmation** (AskUserQuestion) before continuing, stating how many
-   will be inferred. Never infer hundreds of contexts without explicit approval.
+2. **Budget & consent**: default budget = **15 contexts/run** (a full vertical feature ≈ 10-12 contexts —
+   the budget must clear it without truncation). If the number of stale contexts **reaches or exceeds** the
+   budget (≥, not >), or it looks costly, **ask for confirmation** (AskUserQuestion) before continuing,
+   stating how many will be inferred. Never infer hundreds of contexts without explicit approval, and never
+   silently truncate — if you stop at the budget, say which contexts remain stale.
 
 3. **For each retained context** (up to the budget):
    a. Get the evidence pack: `node "$ENG" evidence <id> "$ROOT"` (JSON on stdout).

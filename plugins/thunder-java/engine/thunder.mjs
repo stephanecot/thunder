@@ -84,11 +84,12 @@ function cmdAskDetail(root, ctxId) {
   catch { console.error(`no detail shard for ${ctxId}`); process.exit(1); }
 }
 
-function cmdBuild(root) {
+function cmdBuild(root, force) {
   const t0 = process.hrtime.bigint();
-  const r = build(root);
+  const r = build(root, { force });
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-  console.log(`thunder: ${r.total} fichiers (${r.parsed} parsés, ${r.reused} réutilisés, ${r.errors} erreurs) → ` +
+  console.log(`thunder: ${r.total} fichiers (${r.parsed} parsés, ${r.reused} réutilisés, ${r.errors} erreurs)` +
+    `${r.engineBust ? ' [cache invalidé: moteur modifié ou --force]' : ''} → ` +
     `${r.model.modules.length} modules, ${r.model.contexts.length} contextes, ${r.model.endpoints.length} endpoints · ${r.changed} shards écrits · ${ms.toFixed(0)}ms`);
 }
 
@@ -283,7 +284,7 @@ if (flags.has('--selftest')) {
   selftest().catch((e) => { console.error('❌ selftest FAILED:', e.message); process.exit(1); });
 } else {
   switch (cmd) {
-    case 'build': cmdBuild(R(pos[1])); break;                       // build [root]
+    case 'build': cmdBuild(R(pos[1]), flags.has('--force')); break; // build [root] [--force]
     case 'ensure': cmdEnsure(R(pos[1])); break;                     // ensure [root]
     case 'overview': cmdOverview(R(pos[1])); break;                 // overview [root]
     case 'endpoints': cmdEndpoints(R(pos[1])); break;              // endpoints [root]

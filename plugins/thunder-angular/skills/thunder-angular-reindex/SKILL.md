@@ -21,8 +21,10 @@ ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${CLAUDE_PROJECT_DIR}"
 ## Functional enrichment flow
 1. Refresh + list stale: `node "$ENG" build "$ROOT" >/dev/null` then `node "$ENG" stale --json "$ROOT"`.
    If empty, say "functional layer already up to date" and stop.
-2. **Budget & consent**: default 10 contexts/run. If more are stale (or it looks costly), **ask for
-   confirmation** (AskUserQuestion) stating how many will be inferred. Never infer hundreds silently.
+2. **Budget & consent**: default **15 contexts/run** (a full feature ≈ 10-12 contexts — clear it without
+   truncation). If the number of stale contexts **reaches or exceeds** the budget (≥, not >), or it looks
+   costly, **ask for confirmation** (AskUserQuestion) stating how many will be inferred. Never infer
+   hundreds silently, and never silently truncate — if you stop at the budget, say what remains stale.
 3. For each retained context (up to budget):
    a. `node "$ENG" evidence <id> "$ROOT"` → evidence pack JSON.
    b. Delegate to the **thunder-angular-cartographer** sub-agent (Task) with that JSON → it returns strict

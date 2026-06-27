@@ -391,3 +391,13 @@ inclut aussi les thèmes/keywords de module.
 chers en thunder — laissés tels quels, non sur-ingénierés.*
 
 Relance : `node engine/tools/sweep-bench.mjs realdemo`
+
+### R5.5 — bugs trouvés en test end-to-end (vertical « Category », 18 fichiers via sous-agent)
+3 corrections (le sous-agent → hook → build → reindex marchait, mais) :
+- **(a) `dirty.list` jamais vidé** (fuite + travail redondant) → `build` **draine `dirty.list`** à la fin
+  (il a réconcilié tout l'index, la file est obsolète). Vérifié : 1 → 0 après build.
+- **(b) pas de cache-bust quand le MOTEUR change** (après un fix du parser, `build` resservait les vieux
+  parses bugués ; il fallait `rm cache.ndjson`) → le cache stocke un **`engineHash`** (empreinte de
+  `lexer.mjs`+`parser.mjs`) ; un changement du moteur **réinvalide automatiquement** + flag **`build --force`**.
+- **(c) budget reindex pile à la limite** (un vertical = ~10-12 contextes, tronqué silencieusement à 10) →
+  défaut monté à **15** + confirmation dès qu'on **atteint** le budget (≥), jamais de troncature silencieuse.

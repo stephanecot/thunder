@@ -302,3 +302,29 @@ Cible : ≥ 18/20 requêtes en faveur de thunder, économie agrégée ≥ 70 % (
 minimaux) — déjà atteint, ne pas régresser.
 
 Garde-fous inchangés (rétro-compat, hashes/inférence intacts, `node --test` vert).
+
+## R5.5 — [BUGS trouvés en test end-to-end : ajout d'un gros feature « Category », 18 fichiers]
+Test réel : un sous-agent a écrit 18 fichiers `.java` (vertical complet) → hook → build → reindex
+→ économie 72 % sur le nouveau code. Ça marche, MAIS 3 problèmes :
+
+a) **`dirty.list` n'est jamais vidé.** Après écriture des 18 fichiers, `dirty.list` = 18 entrées ;
+   après `build`, **toujours 18**. Il grossit indéfiniment session après session. Or `build`
+   rehashe tout (« 18 parsés, 52 réutilisés ») — il n'a même pas l'air de CONSOMMER `dirty.list`.
+   → Soit `build` consomme `dirty.list` pour ne reparser QUE le dirty (et le tronque ensuite),
+   soit `dirty.list` est mort et il faut le supprimer. Aujourd'hui : fuite + travail redondant.
+
+b) **Pas de cache-bust quand le MOTEUR change.** `cache.ndjson` est clé par hash de fichier ;
+   après une modif du PARSEUR (pas du source), `build` ressert les vieux parses bugués. `build --full`
+   n'a PAS forcé le reparse — j'ai dû `rm cache.ndjson` manuellement (2× pendant les tests).
+   → Ajouter un `build --force` (ou invalider `cache.ndjson` si la version du moteur a changé,
+   p.ex. stocker un `engineVersion` dans le cache et le comparer). Critique pour itérer sur le moteur.
+
+c) **Budget reindex pile à la limite.** Un vertical complet = ~10 contextes = exactement le budget
+   de 10/run. La skill ne demande confirmation que si on « dépasse » → 10 passe sans confirmation,
+   mais un feature un peu plus gros se fait silencieusement tronquer à 10. → Soit monter le défaut
+   à ~15, soit confirmer dès qu'on ATTEINT le budget (≥, pas >).
+
+BONNE NOUVELLE (à ne PAS casser) : les Write d'un SOUS-AGENT déclenchent bien le hook PostToolUse
+du parent (les 18 fichiers ont tous atterri dans `dirty.list`). Et le fix endpoints (R3.1) tient sur
+le code neuf : les 5 endpoints `/api/v1/categories` sont captés. Le `project-brief` et `endpoints.yaml`
+se régénèrent correctement après reindex.

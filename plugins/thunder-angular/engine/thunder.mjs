@@ -10,11 +10,12 @@ import {
   staleModules, setModuleFunctional, moduleContextHash,
 } from './lib/functional.mjs';
 
-function cmdBuild(root) {
+function cmdBuild(root, force) {
   const t0 = process.hrtime.bigint();
-  const r = build(root);
+  const r = build(root, { force });
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-  console.log(`thunder-angular: ${r.total} fichiers (${r.parsed} parsés, ${r.reused} réutilisés, ${r.errors} erreurs) → ` +
+  console.log(`thunder-angular: ${r.total} fichiers (${r.parsed} parsés, ${r.reused} réutilisés, ${r.errors} erreurs)` +
+    `${r.engineBust ? ' [cache invalidé: moteur modifié ou --force]' : ''} → ` +
     `${r.model.projects.length} projets, ${r.model.contexts.length} contextes, ${r.model.routes.length} routes · ${r.changed} shards · ${ms.toFixed(0)}ms`);
 }
 
@@ -233,7 +234,7 @@ if (flags.has('--selftest')) {
   selftest().catch((e) => { console.error('❌ selftest FAILED:', e.message); process.exit(1); });
 } else {
   switch (cmd) {
-    case 'build': cmdBuild(R(pos[1])); break;
+    case 'build': cmdBuild(R(pos[1]), flags.has('--force')); break;
     case 'ensure': cmdEnsure(R(pos[1])); break;
     case 'overview': cmdOverview(R(pos[1])); break;
     case 'routes': cmdRoutes(R(pos[1])); break;
