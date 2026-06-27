@@ -5,7 +5,7 @@ description: 'Explore and understand an Angular/TypeScript codebase token-minima
 
 # codemap — understand the Angular app, INLINE
 
-thunder-angular maintains a YAML index under `<project>/.claude/cache/thunder-angular/`. Answer from it **in
+thunder-angular maintains a YAML index under `<project>/.thunder/angular/`. Answer from it **in
 the main loop**; never read `.ts` while the index answers.
 
 ## Rule #1 — answer inline, sub-agent budget = 0
@@ -26,7 +26,7 @@ template — then 1 agent max, seeded with exact `file:line` from the index.
 ## Workflow (all inline)
 
 1. **Architecture / overview / "what does the app do" / list routes** → read **one** file:
-   `Read .claude/cache/thunder-angular/project-brief.yaml` (arch style, projects + roles, all routes, key
+   `Read .thunder/angular/project-brief.yaml` (arch style, projects + roles, all routes, key
    rules). Answer from it. **Do not also read `index.yaml` or cards.**
 
 2. **A specific feature / where / flow / rule** → **one** command:

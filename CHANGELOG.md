@@ -10,11 +10,11 @@ the version a change applies to is noted inline. Per-plugin measured results liv
 
 | Plugin | Version |
 |---|---|
-| `thunder-java` | 0.1.9 |
-| `thunder-angular` | 0.1.10 |
-| `thunder-python` | 0.1.4 |
-| `thunder-node` | 0.0.2 |
-| `thunder-react` | 0.0.1 |
+| `thunder-java` | 0.1.10 |
+| `thunder-angular` | 0.1.11 |
+| `thunder-python` | 0.1.5 |
+| `thunder-node` | 0.0.3 |
+| `thunder-react` | 0.0.2 |
 | `thunder-mind` | 0.2.0 |
 
 ## [Unreleased]
@@ -36,6 +36,12 @@ the version a change applies to is noted inline. Per-plugin measured results liv
 - **Docs** — `CHANGELOG.md`; README per-plugin detail + version/maturity table.
 
 ### Changed
+- **Framework index is now committed & shared** (java `0.1.10`, angular `0.1.11`, python `0.1.5`,
+  node `0.0.3`, react `0.0.2`) — relocated from the gitignored `.claude/cache/thunder-<lang>/` to a
+  **committed `.thunder/<language>/`** (project-brief, shards, cards, capability-map, routes/endpoints,
+  and the inferred `functional.json`). Two developers share one index on a branch and don't re-spend
+  tokens re-inferring the functional layer. Only per-dev volatile files stay gitignored (`cache.ndjson`,
+  `manifest.json`, `dirty.list`, `qa-ledger.ndjson`, `.config`).
 - **`thunder-angular`** `0.1.10` — ROUND 2: factory-call route guards (`scopeGuard('x')`) and real HTTP
   verb + normalized URL extraction; expanded sweep to ≥50 questions.
 - **DEBUG config** is now **per-framework** at `.thunder/<framework>/.config` (was a single `.thunder.config`),

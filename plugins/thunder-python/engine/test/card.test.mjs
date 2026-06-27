@@ -18,7 +18,7 @@ function facts() {
 function emitToTmp() {
   const dir = mkdtempSync(join(tmpdir(), 'thunder-py-card-'));
   emit(dir, derive(facts()), {});
-  return { dir, base: join(dir, '.claude', 'cache', 'thunder-python') };
+  return { dir, base: join(dir, '.thunder', 'python') };
 }
 
 test('emit produces a small tier-1 card', () => {

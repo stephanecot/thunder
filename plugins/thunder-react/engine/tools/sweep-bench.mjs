@@ -11,7 +11,7 @@ import { readCache } from '../lib/cache.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const ENGINE = join(here, '..', 'thunder.mjs');
 const root = process.argv[2] || join(here, '..', '..', 'demo');
-const C = join(root, '.claude', 'cache', 'thunder-react');
+const C = join(root, '.thunder', 'react');
 const tok = (b) => Math.round(b / 4);
 const fileTok = (...fs) => tok(fs.filter(Boolean).reduce((a, f) => { try { return a + statSync(f).size; } catch { return a; } }, 0));
 const eng = (...args) => tok(Buffer.byteLength(execFileSync('node', [ENGINE, ...args, root], { maxBuffer: 1 << 24 })));

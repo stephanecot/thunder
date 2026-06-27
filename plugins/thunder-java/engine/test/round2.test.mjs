@@ -53,7 +53,7 @@ test('project-brief.yaml is emitted with arch, modules and the endpoint list', (
   const dir = mkdtempSync(join(tmpdir(), 'thunder-brief-'));
   try {
     emit(dir, derive([controllerFact()]), {});
-    const brief = readFileSync(join(dir, '.claude', 'cache', 'thunder-java', 'project-brief.yaml'), 'utf8');
+    const brief = readFileSync(join(dir, '.thunder', 'java', 'project-brief.yaml'), 'utf8');
     assert.ok(/arch:/.test(brief), 'arch style');
     assert.ok(/modules:/.test(brief), 'modules');
     assert.ok(brief.includes('POST /api/v1/tags'), 'endpoint listed in brief');

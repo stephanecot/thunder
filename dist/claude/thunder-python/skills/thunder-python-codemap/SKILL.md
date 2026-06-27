@@ -6,7 +6,7 @@ allowed-tools: Read, Bash, Grep
 
 # codemap — understand the Python app, INLINE
 
-thunder-python maintains a YAML index under `<project>/.claude/cache/thunder-python/`. Answer from it **in
+thunder-python maintains a YAML index under `<project>/.thunder/python/`. Answer from it **in
 the main loop**; never read `.py` while the index answers. It auto-detects the framework per package
 (FastAPI/Flask/Django/plain) and unifies routes, models and DI.
 

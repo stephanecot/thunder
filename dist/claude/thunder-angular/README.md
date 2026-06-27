@@ -45,7 +45,7 @@ route intents) — all index text in **English**.
 | Agent | `thunder-angular-cartographer` (Haiku) | infer the functional layer, grounded on an evidence pack |
 | Hooks | SessionStart / PostToolUse | keep the index fresh, never spending tokens silently |
 
-## Index (`<project>/.claude/cache/thunder-angular/`)
+## Index (`<project>/.thunder/angular/`)
 
 ```
 index.yaml                    # TOP: projects (+ theme & keywords)

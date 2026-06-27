@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-export const cacheDir = (root) => join(root, '.claude', 'cache', 'thunder-python');
+export const cacheDir = (root) => join(root, '.thunder', 'python');
 
 export function ensureDir(dir) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

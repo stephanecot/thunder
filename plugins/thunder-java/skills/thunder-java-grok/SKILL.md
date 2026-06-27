@@ -39,7 +39,7 @@ automatically.)
 ## Procedure (all inline)
 
 1. **Architecture / overview / "what does the app do" / list endpoints** → read **one** file:
-   `Read .claude/cache/thunder-java/project-brief.yaml` (arch style, modules + roles, all endpoints, key
+   `Read .thunder/java/project-brief.yaml` (arch style, modules + roles, all endpoints, key
    rules). Answer from it. **Do not also read `index.yaml` or cards.**
 
 2. **A specific feature / where / flow / rule** → **one** command:

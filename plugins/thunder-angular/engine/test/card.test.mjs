@@ -27,7 +27,7 @@ function facts() {
 function emitToTmp() {
   const dir = mkdtempSync(join(tmpdir(), 'thunder-ng-card-'));
   emit(dir, derive(facts()), {});
-  return { dir, base: join(dir, '.claude', 'cache', 'thunder-angular') };
+  return { dir, base: join(dir, '.thunder', 'angular') };
 }
 
 test('emit produces a small tier-1 card for the feature', () => {

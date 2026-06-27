@@ -6,7 +6,7 @@ allowed-tools: Read, Bash, Grep
 
 # codemap — understand the React app, INLINE
 
-thunder-react maintains a YAML index under `<project>/.claude/cache/thunder-react/`. Answer from it **in
+thunder-react maintains a YAML index under `<project>/.thunder/react/`. Answer from it **in
 the main loop**; never read `.ts` while the index answers.
 
 ## Rule #1 — answer inline, sub-agent budget = 0
@@ -27,7 +27,7 @@ template — then 1 agent max, seeded with exact `file:line` from the index.
 ## Workflow (all inline)
 
 1. **Architecture / overview / "what does the app do" / list routes** → read **one** file:
-   `Read .claude/cache/thunder-react/project-brief.yaml` (arch style, projects + roles, all routes, key
+   `Read .thunder/react/project-brief.yaml` (arch style, projects + roles, all routes, key
    rules). Answer from it. **Do not also read `index.yaml` or cards.**
 
 2. **A specific feature / where / flow / rule** → **one** command:

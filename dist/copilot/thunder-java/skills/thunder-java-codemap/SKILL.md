@@ -5,7 +5,7 @@ description: 'Explore and understand a Java/Spring Boot codebase token-minimally
 
 # codemap — understand the codebase, INLINE
 
-thunder maintains a YAML index under `<project>/.claude/cache/thunder-java/`. Answer from it **in the main
+thunder maintains a YAML index under `<project>/.thunder/java/`. Answer from it **in the main
 loop**; never read `.java` while the index answers.
 
 ## Rule #1 — answer inline, sub-agent budget = 0
@@ -26,7 +26,7 @@ which business rule.** A sub-agent costs ~**11k tokens of fixed overhead**; answ
 ## Workflow (all inline)
 
 1. **Architecture / overview / "what does the app do" / list all endpoints** → read **one** file:
-   `Read .claude/cache/thunder-java/project-brief.yaml` (arch style, modules + roles, all endpoints
+   `Read .thunder/java/project-brief.yaml` (arch style, modules + roles, all endpoints
    verb+path+controller, key business rules). Answer from it. **Do not also read `index.yaml` or cards.**
 
 2. **A specific feature / where / flow / rule** → **one** command:

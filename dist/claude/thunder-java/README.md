@@ -34,7 +34,7 @@ token savings.
 | Agent | `thunder-java-cartographer` (Haiku) | infer the functional layer, grounded on an evidence pack (strict JSON) |
 | Hooks | SessionStart / PostToolUse | keep the index fresh without ever spending tokens silently |
 
-## Produced index (`<project>/.claude/cache/thunder-java/`)
+## Produced index (`<project>/.thunder/java/`)
 
 ```
 index.yaml            # TOP: modules (+ inferred theme & keywords), always loadable

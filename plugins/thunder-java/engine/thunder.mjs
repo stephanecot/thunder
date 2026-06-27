@@ -54,7 +54,7 @@ function cmdAsk(root, query, topOverride, factsMode = false) {
 
   // R5.2: conceptual query that matches no card → fall back to the project brief, not an empty payload
   if (!scored.length) {
-    const brief = join(root, '.claude', 'cache', 'thunder-java', 'project-brief.yaml');
+    const brief = join(root, '.thunder', 'java', 'project-brief.yaml');
     try { process.stdout.write(`# no card matched "${query}" — project brief (overview):\n` + readFileSync(brief, 'utf8')); }
     catch { console.log(dump({ query, matched: 0, hint: 'no match; read project-brief.yaml' })); }
     return;
@@ -100,7 +100,7 @@ function cmdAskDetail(root, ctxId) {
   if (!ctxId) { console.error('usage: ask --detail <ctxId> <root>'); process.exit(1); }
   build(root);
   const [mod, pkg] = ctxId.split('/');
-  const p = join(root, '.claude', 'cache', 'thunder-java', 'modules', mod || '', (pkg || '') + '.yaml');
+  const p = join(root, '.thunder', 'java', 'modules', mod || '', (pkg || '') + '.yaml');
   try { process.stdout.write(readFileSync(p, 'utf8')); }
   catch { console.error(`no detail shard for ${ctxId}`); process.exit(1); }
 }
@@ -150,7 +150,7 @@ function cmdStale(root, asJson) {
 }
 
 function cmdResetFunctional(root) {
-  const p = join(root, '.claude', 'cache', 'thunder-java', 'functional.json');
+  const p = join(root, '.thunder', 'java', 'functional.json');
   try { if (existsSync(p)) rmSync(p); } catch { /* ignore */ }
   build(root);
   console.log('thunder: couche fonctionnelle réinitialisée (tous les contextes redeviennent à inférer)');

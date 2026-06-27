@@ -38,7 +38,7 @@ function facts() {
 function emitToTmp() {
   const dir = mkdtempSync(join(tmpdir(), 'thunder-card-'));
   emit(dir, derive(facts()), {});
-  return { dir, base: join(dir, '.claude', 'cache', 'thunder-java') };
+  return { dir, base: join(dir, '.thunder', 'java') };
 }
 
 test('emit produces a small tier-1 card', () => {

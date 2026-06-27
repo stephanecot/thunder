@@ -57,7 +57,7 @@ function cmdStaleModules(root, asJson) {
 }
 
 function cmdResetFunctional(root) {
-  const p = join(root, '.claude', 'cache', 'thunder-python', 'functional.json');
+  const p = join(root, '.thunder', 'python', 'functional.json');
   try { if (existsSync(p)) rmSync(p); } catch { /* ignore */ }
   build(root);
   console.log('thunder-python: couche fonctionnelle réinitialisée');
@@ -149,7 +149,7 @@ function cmdAsk(root, query, topOverride, factsMode = false) {
   }
   scored.sort((a, b) => b.score - a.score || a.c.id.localeCompare(b.c.id));
   if (!scored.length) {
-    const brief = join(root, '.claude', 'cache', 'thunder-python', 'project-brief.yaml');
+    const brief = join(root, '.thunder', 'python', 'project-brief.yaml');
     try { process.stdout.write(`# no card matched "${query}" — project brief (overview):\n` + readFileSync(brief, 'utf8')); }
     catch { console.log(dump({ query, matched: 0 })); }
     return;
@@ -181,7 +181,7 @@ function cmdAskDetail(root, ctxId) {
   if (!ctxId) { console.error('usage: ask --detail <ctxId> <root>'); process.exit(1); }
   build(root);
   const [proj, pkg] = ctxId.split('/');
-  try { process.stdout.write(readFileSync(join(root, '.claude', 'cache', 'thunder-python', 'projects', proj || '', (pkg || '') + '.yaml'), 'utf8')); }
+  try { process.stdout.write(readFileSync(join(root, '.thunder', 'python', 'projects', proj || '', (pkg || '') + '.yaml'), 'utf8')); }
   catch { console.error(`no detail shard for ${ctxId}`); process.exit(1); }
 }
 

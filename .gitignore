@@ -19,6 +19,18 @@ node_modules/
 **/.thunder/gains.md
 **/.thunder/*/.config
 
+# Framework index now COMMITTED under .thunder/<lang>/ (project-brief, index, shards, cards,
+# capability-map, routes/endpoints, functional.json) so two devs SHARE it on a branch and don't
+# re-spend tokens re-inferring the functional layer. Only the per-dev VOLATILE bits stay ignored:
+**/.thunder/*/cache.ndjson
+**/.thunder/*/manifest.json
+**/.thunder/*/dirty.list
+**/.thunder/*/qa-ledger.ndjson
+
+# This repo's own framework demos are fixtures — don't commit their generated index (no functional
+# layer here anyway; it needs the cartographer agent). The committed-index behavior is for real projects.
+plugins/thunder-*/demo/.thunder/
+
 # thunder-mind: .thunder/mind/decisions/ is the COMMITTED source of truth; the derived index lives in
 # .claude/cache/thunder-mind/ (covered by **/.claude/cache/ above). Ignore the synthetic scaling corpus.
 plugins/thunder-mind/minddemo-big/

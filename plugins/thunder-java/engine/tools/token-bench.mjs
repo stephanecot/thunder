@@ -14,7 +14,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ENGINE = join(here, '..', 'thunder.mjs');
 const ANALYZE = join(here, 'analyze.mjs');
 const root = process.argv[2] || join(here, '..', '..', 'demo');
-const C = join(root, '.claude', 'cache', 'thunder-java');
+const C = join(root, '.thunder', 'java');
 const SUBAGENT = 11000; // measured fixed cost of spawning one Explore/Task agent (round-1 finding)
 
 const tok = (b) => Math.round(b / 4);

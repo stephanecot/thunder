@@ -15,7 +15,7 @@ import { build } from '../lib/build.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const ENGINE = join(here, '..', 'thunder.mjs');
 const root = process.argv[2] || join(here, '..', '..', 'demo');
-const C = join(root, '.claude', 'cache', 'thunder-angular');
+const C = join(root, '.thunder', 'angular');
 
 const tok = (b) => Math.round(b / 4);
 const fileTok = (...fs) => tok(fs.reduce((a, f) => { try { return a + statSync(f).size; } catch { return a; } }, 0));

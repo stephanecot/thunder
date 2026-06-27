@@ -41,7 +41,7 @@ text in **English**. Indentation-aware parser (no braces), zero external deps.
 | Agent | `thunder-python-cartographer` (Haiku) | infer the functional layer, grounded on an evidence pack |
 | Hooks | SessionStart / PostToolUse | keep the index fresh, never spending tokens silently |
 
-## Index (`<project>/.claude/cache/thunder-python/`)
+## Index (`<project>/.thunder/python/`)
 ```
 project-brief.yaml            # frameworks, projects+roles, all routes, key rules (one inline read)
 index.yaml                    # projects (+ theme/keywords)

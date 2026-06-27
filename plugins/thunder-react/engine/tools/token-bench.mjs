@@ -13,7 +13,7 @@ import { build } from '../lib/build.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const ENGINE = join(here, '..', 'thunder.mjs');
 const root = process.argv[2] || join(here, '..', '..', 'demo');
-const C = join(root, '.claude', 'cache', 'thunder-react');
+const C = join(root, '.thunder', 'react');
 const SUBAGENT = 11000;
 
 const tok = (b) => Math.round(b / 4);

@@ -52,7 +52,7 @@ Jamais un seul fichier monolithique. Hiérarchie **modules Maven → bounded-con
 profondeur **adaptative** (auto-détection : plusieurs `pom.xml` → modules ; un seul → packages racine).
 
 ```
-.claude/cache/thunder-java/
+.thunder/java/
   index.yaml            # SOMMET : modules + contextes + 1 ligne chacun + compteurs (toujours petit)
   capability-map.yaml   # 1 ligne/contexte, plat, GREPABLE sans chargement (aide à la découverte)
   modules/
@@ -216,7 +216,7 @@ reste propre. Pas « 2k absolus » pour les requêtes de découverte.*
 ## Sûreté & tests
 
 - **Sûreté moteur** : exclusions + `.gitignore`, skip binaires/gros fichiers, pas de symlink hors racine,
-  `try/catch` par fichier (`parse_error` visible), n'exécute jamais de code, n'écrit que sous `.claude/cache/thunder-java/`.
+  `try/catch` par fichier (`parse_error` visible), n'exécute jamais de code, n'écrit que sous `.thunder/java/`.
 - **Golden tests** : le projet démo multi-module **est** la fixture. `tests/expected/*.yaml` + `--selftest`
   (`node:test`/`node:assert`) diffe parse+derive+emit. Sélection d'evidence pack golden-testée (déterministe) ;
   sortie fonctionnelle exclue du golden (non-déterministe).

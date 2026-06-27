@@ -9,11 +9,11 @@ can explore, understand and navigate a codebase while spending **2–3 orders of
 
 | Plugin | Stack | Version | Optimization rounds | Maturity |
 |---|---|---|---|---|
-| [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | `0.1.9` | 6 — R2…R5.5, two-tier card/detail, Tier-3 | ⭐⭐⭐ Mature |
-| [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | `0.1.10` | 4 — granularity, functional guards + HTTP (R2), ≥50-query sweep, Tier-3 | ⭐⭐⭐ Mature |
-| [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | `0.1.4` | 2 — multi-framework detection, Tier-3 | ⭐⭐ Stable |
-| [`thunder-node`](./plugins/thunder-node) | Node.js backend (Express / Fastify / NestJS) | `0.0.2` | 1 — initial (multi-framework) | ⭐ New |
-| [`thunder-react`](./plugins/thunder-react) | React.js (components / hooks / React Router) | `0.0.1` | 1 — initial | ⭐ New |
+| [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | `0.1.10` | 7 — R2…R5.5, two-tier card/detail, Tier-3 | ⭐⭐⭐ Mature |
+| [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | `0.1.11` | 5 — granularity, functional guards + HTTP (R2), ≥50-query sweep, Tier-3 | ⭐⭐⭐ Mature |
+| [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | `0.1.5` | 3 — multi-framework detection, Tier-3 | ⭐⭐ Stable |
+| [`thunder-node`](./plugins/thunder-node) | Node.js backend (Express / Fastify / NestJS) | `0.0.3` | 2 — initial (multi-framework) | ⭐ New |
+| [`thunder-react`](./plugins/thunder-react) | React.js (components / hooks / React Router) | `0.0.2` | 2 — initial | ⭐ New |
 | [`thunder-mind`](./plugins/thunder-mind) | **Any** — shared project-decision index (companion) | `0.2.0` | 2 — tiered constitution + reliable capture | ⭐⭐ Stable |
 
 > The first five are **codebase-comprehension** plugins (one per language/stack). **`thunder-mind`** is a
@@ -59,8 +59,19 @@ explore/understand/navigate · committed-source vs gitignored-derived split · h
 silently · the shared **Tier-3** layer (answer cache · pruning · per-framework DEBUG).
 
 > Shared architecture: pure Node.js engine (zero dependencies), cross-platform, sharded YAML index,
-> incremental cache, hooks that never spend tokens silently. Each plugin writes its index to its own
-> namespace (`.claude/cache/thunder-<language>/`) → no collision on a polyglot monorepo.
+> incremental cache, hooks that never spend tokens silently. Each framework plugin writes its index to its
+> own **committed** namespace `.thunder/<language>/` → no collision on a polyglot monorepo.
+
+### The index is committed & shared (not a throwaway cache)
+
+The framework index lives at **`<project>/.thunder/<language>/`** and is **meant to be committed**
+(project-brief, `index.yaml`, per-context shards & cards, `capability-map.yaml`, routes/endpoints, and the
+inferred **`functional.json`**). Why commit it? The technical layer is free, but the **functional/business
+layer is inferred by the cartographer (it costs tokens)** — committing it lets the whole team **share one
+index on a branch** and **never re-spend tokens** re-inferring it. Only per-developer **volatile** files
+stay gitignored: `cache.ndjson`, `manifest.json`, `dirty.list`, `qa-ledger.ndjson`, and the local
+`.thunder/<lang>/.config` DEBUG toggle. (`thunder-mind` keeps its derived index in `.claude/cache/` and
+commits its *decisions* instead.)
 
 ## Installation
 

@@ -42,7 +42,7 @@ test('project-brief.yaml is emitted with arch, projects and routes', () => {
   const dir = mkdtempSync(join(tmpdir(), 'thunder-ngbrief-'));
   try {
     emit(dir, derive(facts), {});
-    const brief = readFileSync(join(dir, '.claude', 'cache', 'thunder-angular', 'project-brief.yaml'), 'utf8');
+    const brief = readFileSync(join(dir, '.thunder', 'angular', 'project-brief.yaml'), 'utf8');
     assert.ok(/arch:/.test(brief), 'arch style');
     assert.ok(/projects:/.test(brief), 'projects');
     assert.ok(brief.includes('users → UserListComponent'), 'route listed in brief');
