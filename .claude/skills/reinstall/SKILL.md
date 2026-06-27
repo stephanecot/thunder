@@ -1,70 +1,78 @@
 ---
 name: reinstall
-description: Internal maintainer skill for the Thunder repo. Explain and perform reinstallation of this project's plugins (thunder-java / -angular / -python / -node / -react) into the local Claude Code plugin cache so edits in the working tree take effect. Use when asked to (re)install a plugin, refresh after editing a plugin, or make a new version active in the session.
-allowed-tools: Read, Bash
+description: Internal maintainer skill for the Thunder repo. Explain and perform (re)installation of this project's plugins (thunder-java / -angular / -python / -node / -react / -mind) into the local Claude Code config so working-tree edits take effect AND the plugins are actually visible. Use when asked to (re)install a plugin, refresh after editing, or when a plugin "doesn't show up" after reloading.
+allowed-tools: Read, Bash, Edit
 ---
 
 # reinstall — (re)install Thunder plugins from the working tree
 
-Thunder is a **local-directory marketplace** named `thunder` pointing at this repo
-(`~/.claude/plugins/known_marketplaces.json` → `{ source: directory, path: <repo> }`). Claude Code
-installs each plugin from `./plugins/<name>` (source), but the **active copy lives in a version-keyed
-cache** under `~/.claude/plugins/cache/thunder/<name>/<version>/`. Editing a plugin in the working tree
-does NOT change the cached copy — you must reinstall.
+Thunder is a **local-directory marketplace** named `thunder` pointing at this repo. For a plugin to be
+**visible and usable** in a session, THREE things must agree — miss any one and it silently won't appear:
 
-## Two ways to reinstall
+1. **Cached copy** — `~/.claude/plugins/cache/thunder/<name>/<version>/` holds the active files.
+2. **Installed record** — `~/.claude/plugins/installed_plugins.json` → `"<name>@thunder"` points at that path/version.
+3. **Enabled flag** — `~/.claude/settings.json` → `enabledPlugins["<name>@thunder"] = true`. ← **this is the
+   one most often missing** (a plugin can be installed but disabled → never loads).
 
-### A. Via the Claude Code UI (simplest, user-driven)
-Tell the user to run, in the Claude prompt:
+Then **reload the session**: Claude Code reads `settings.json` + `installed_plugins.json` **at startup**, so
+newly installed/enabled plugins only register after a reload (new window or restart).
+
+> Symptom "I reinstalled but don't see it" = almost always step 3 (not in `enabledPlugins`) or no reload.
+
+## A. Via the Claude Code UI (user-driven)
+Have the user run in the Claude prompt, then reload:
 ```
-/plugin marketplace update thunder      # re-read the local marketplace.json
-/plugin install thunder-<name>@thunder  # pick up the new version
+/plugin marketplace update thunder        # re-read the local marketplace.json
+/plugin install thunder-<name>@thunder    # installs + enables + caches
 ```
-(or `/plugin` → manage → update). They may need to reload the session for new skills to register.
 
-### B. Manual cache refresh (what this skill does — scriptable, no prompt)
-For each plugin to refresh: copy the source into the version-keyed cache and point
-`installed_plugins.json` at it. Bump the plugin version first (so the cache path is new).
-
+## B. Scriptable refresh (what this skill does) — all three steps + verify
 ```bash
-REPO="<repo root>"                       # /Users/.../dev/proto/thunder
+REPO="<repo root>"                                  # e.g. /Users/.../dev/proto/thunder
 CACHE="$HOME/.claude/plugins/cache/thunder"
-SHA="$(git -C "$REPO" rev-parse HEAD)"
-NOW="$(node -e 'console.log(new Date().toISOString())')"
+SETTINGS="$HOME/.claude/settings.json"
+INSTALLED="$HOME/.claude/plugins/installed_plugins.json"
+export CACHE SHA="$(git -C "$REPO" rev-parse HEAD)" NOW="$(node -e 'console.log(new Date().toISOString())')"
 
-for P in thunder-java thunder-angular thunder-python thunder-node thunder-react; do
+for P in thunder-java thunder-angular thunder-python thunder-node thunder-react thunder-mind; do
   V="$(node -e "console.log(require('$REPO/plugins/$P/.claude-plugin/plugin.json').version)")"
-  DST="$CACHE/$P/$V"
-  rm -rf "$DST"; mkdir -p "$DST"
+  DST="$CACHE/$P/$V"; rm -rf "$DST"; mkdir -p "$DST"
+  # 1. cache copy (exclude generated dirs: caches + hand demos' caches + synthetic *demo/ beds)
   rsync -a --exclude '.claude/cache' --exclude 'demo/.claude' \
         --exclude 'ngdemo' --exclude 'bigdemo' --exclude 'realdemo' --exclude 'pydemo' \
-        --exclude 'nodedemo' --exclude 'reactdemo' \
+        --exclude 'nodedemo' --exclude 'reactdemo' --exclude 'minddemo' --exclude 'minddemo-big' \
         "$REPO/plugins/$P/" "$DST/"
+  # 2. installed record  +  3. enabled flag
   node -e '
-    const fs=require("fs"), p=process.env.HOME+"/.claude/plugins/installed_plugins.json";
-    const j=JSON.parse(fs.readFileSync(p,"utf8")); const k=process.argv[1]+"@thunder";
-    j.plugins[k] = j.plugins[k] || [{scope:"user"}];
-    const e=j.plugins[k][0];
-    e.installPath=process.env.CACHE+"/"+process.argv[1]+"/"+process.argv[2];
-    e.version=process.argv[2]; e.lastUpdated=process.env.NOW; e.gitCommitSha=process.env.SHA;
-    fs.writeFileSync(p, JSON.stringify(j,null,2));
+    const fs=require("fs"); const [P,V]=process.argv.slice(1); const k=P+"@thunder";
+    const inst=JSON.parse(fs.readFileSync(process.env.INSTALLED,"utf8"));
+    inst.plugins[k]=inst.plugins[k]||[{scope:"user"}]; const e=inst.plugins[k][0];
+    e.installPath=process.env.CACHE+"/"+P+"/"+V; e.version=V;
+    e.lastUpdated=process.env.NOW; e.gitCommitSha=process.env.SHA;
+    fs.writeFileSync(process.env.INSTALLED, JSON.stringify(inst,null,2));
+    const set=JSON.parse(fs.readFileSync(process.env.SETTINGS,"utf8"));
+    set.enabledPlugins=set.enabledPlugins||{}; set.enabledPlugins[k]=true;       // ← the key step
+    fs.writeFileSync(process.env.SETTINGS, JSON.stringify(set,null,2));
   ' "$P" "$V"
-  echo "installed $P $V"
+  echo "installed + enabled $P $V"
 done
+# keep the marketplace catalog fresh so the /plugin UI lists the new versions
+node -e 'const fs=require("fs"),p=process.env.HOME+"/.claude/plugins/known_marketplaces.json";const j=JSON.parse(fs.readFileSync(p,"utf8"));if(j.thunder){j.thunder.lastUpdated=process.env.NOW;fs.writeFileSync(p,JSON.stringify(j,null,2));}'
 ```
+(Use the `Edit` tool on `settings.json` if you prefer a reviewable diff over the in-place node write.)
 
-## Verify
+## Verify (all three must line up for every plugin)
 ```bash
-node -e 'const j=require(process.env.HOME+"/.claude/plugins/installed_plugins.json");
-for(const k of Object.keys(j.plugins)) if(/thunder-/.test(k)) console.log(k, j.plugins[k][0].version)'
+node -e '
+const s=require(process.env.HOME+"/.claude/settings.json").enabledPlugins||{};
+const i=require(process.env.HOME+"/.claude/plugins/installed_plugins.json").plugins;
+for(const p of ["java","angular","python","node","react","mind"]){const k="thunder-"+p+"@thunder";
+  console.log("thunder-"+p.padEnd(8),"enabled="+(!!s[k]),"installed="+(!!i[k]),(s[k]&&i[k])?"OK":"MISSING")}'
 ```
-The printed versions must match `marketplace.json`. New skills only become invocable after the session
-picks them up (the manual method updates the cache immediately; a UI install + reload is the safe path
-for skill registration).
+Then **tell the user to reload the session** — that is when the skills actually register.
 
 ## Notes
-- Always **bump the version** in `plugins/<name>/.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`
-  before reinstalling — the cache is keyed by version, so same-version reinstalls can be ignored.
-- Exclude generated dirs (caches, demo `.claude`, synthetic `*demo/`) from the copy — they are large and
-  regenerated on first use.
+- **Bump the version** in `plugins/<name>/.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`
+  before reinstalling — the cache is keyed by version; a same-version reinstall may be ignored.
+- "Installed but not visible" → check `enabledPlugins[<name>@thunder]` is `true`, then reload.
 - This refreshes the **Claude** install. `dist/` (Copilot variant) is separate: `node build.mjs` regenerates it.
