@@ -1,0 +1,25 @@
+id: auth/2026-06-27-tenant-isolation-rls
+title: "Tenant isolation via Postgres Row-Level Security"
+type: architecture
+status: active
+domain: auth
+date: 2026-06-27
+authors:
+  - stephane
+context: "Multi-tenant SaaS; tenant data must be isolated without duplicating schemas."
+decision: "Use Postgres Row-Level Security with a per-table policy keyed on tenant_id."
+rationale: "Isolation enforced at the data layer, impossible to bypass from the application."
+consequences:
+  - "Every request must set the app.tenant_id GUC at the start of the transaction."
+alternatives:
+  - {choice: "schema per tenant", rejected_because: "schema-count explosion at scale"}
+tags:
+  - postgres
+  - rls
+  - multi-tenancy
+  - security
+supersedes: auth/2026-05-10-tenant-isolation-app-filter
+conflicts_with: []
+evidence:
+  - "README.md"
+confidence: high

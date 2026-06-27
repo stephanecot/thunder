@@ -1,0 +1,21 @@
+id: auth/2026-05-10-tenant-isolation-app-filter
+title: "Tenant isolation via application-level WHERE filters"
+type: architecture
+status: superseded
+domain: auth
+date: 2026-05-10
+authors:
+  - stephane
+context: "Early multi-tenant approach before evaluating database-native isolation."
+decision: "Filter every query by tenant_id in the application data-access layer."
+rationale: "Simple to implement with the existing ORM, no database features required."
+consequences:
+  - "A single forgotten filter leaks cross-tenant data."
+alternatives: []
+tags:
+  - multi-tenancy
+  - orm
+  - security
+conflicts_with: []
+evidence: []
+confidence: medium

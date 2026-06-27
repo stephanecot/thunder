@@ -1,0 +1,9 @@
+{
+  "name": "thunder-mind",
+  "displayName": "Thunder Mind ⚡",
+  "version": "0.1.0",
+  "description": "Framework-agnostic shared decision index for a project. Pure-Node, zero-dependency engine that stores architectural / technical / functional decisions as committed YAML and indexes them (inverted-index + BM25 recall, bounded alignment brief) so two developers' AIs reuse the same decisions instead of diverging. English-only index, kept fresh by hooks.",
+  "author": { "name": "Stéphane Cottin", "email": "stephanecot@gmail.com" },
+  "keywords": ["decisions", "adr", "knowledge", "alignment", "index", "token-efficient"],
+  "license": "MIT"
+}

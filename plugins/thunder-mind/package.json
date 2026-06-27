@@ -1,0 +1,16 @@
+{
+  "name": "thunder-mind",
+  "version": "0.1.0",
+  "description": "Framework-agnostic shared project-decision index (Node, zero deps)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "selftest": "node engine/thunder.mjs --selftest",
+    "build:demo": "node engine/thunder.mjs build minddemo",
+    "gen:minddemo": "node engine/tools/gen-minddemo.mjs minddemo 2000"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
