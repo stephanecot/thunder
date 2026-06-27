@@ -107,8 +107,8 @@ async function cmdSetModuleFunctional(root, name) {
  * Deterministic, self-sufficient retrieval (INLINE — no sub-agent). One payload:
  * ranked top-N feature cards + the #1 hit enriched (business_rules + route flows) + routes of shown contexts.
  */
-function cmdAsk(root, query, topOverride) {
-  if (!query) { console.error('usage: ask "<keywords>" [--top N] <root>'); process.exit(1); }
+function cmdAsk(root, query, topOverride, factsMode = false) {
+  if (!query) { console.error('usage: ask "<keywords>" [--top N] [--facts] <root>'); process.exit(1); }
   const { model, functional } = build(root);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const scored = [];
@@ -124,6 +124,17 @@ function cmdAsk(root, query, topOverride) {
   let top = topOverride;
   if (top == null) top = (scored.length <= 1 || (scored[0].score >= 2 * (scored[1]?.score || 0))) ? 1 : 3;
   const sel = scored.slice(0, top);
+
+  // --facts: lean payload for a punctual factual question — only rules + route signatures.
+  if (factsMode) {
+    const facts = sel.map(({ c, f, score }) => ({
+      score, id: c.id,
+      ...(f.business_rules ? { business_rules: f.business_rules } : {}),
+      routes: c.routes.map((r) => `${r.path || '/'} → ${r.target || r.kind}`),
+    }));
+    console.log(dump({ query, matched: scored.length, facts }));
+    return;
+  }
   const cards = sel.map(({ c, f, score }, i) => ({
     score, id: c.id, name: f.name || c.name, purpose: f.purpose || null,
     ...(f.capabilities ? { capabilities: f.capabilities } : {}),
@@ -218,7 +229,7 @@ if (flags.has('--selftest')) {
     case 'routes': cmdRoutes(R(pos[1])); break;
     case 'ask':
       if (flags.has('--detail')) cmdAskDetail(R(pos[2]), pos[1]);
-      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : undefined; })());
+      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : undefined; })(), flags.has('--facts'));
       break;
     case 'stale': cmdStale(R(pos[1]), flags.has('--json')); break;
     case 'stale-modules': cmdStaleModules(R(pos[1]), flags.has('--json')); break;
