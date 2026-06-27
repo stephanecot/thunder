@@ -5,6 +5,7 @@
 **/bigdemo/
 **/realdemo/
 **/ngdemo/
+**/pydemo/
 
 # Maven build output
 **/target/

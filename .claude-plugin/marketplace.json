@@ -24,7 +24,7 @@
       "name": "thunder-python",
       "source": "./plugins/thunder-python",
       "description": "Token-minimal comprehension, exploration and navigation of Python codebases — FastAPI / Flask / Django / plain (routes, models, classes, DI, framework-aware + inferred functional layer).",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "keywords": ["python", "fastapi", "flask", "django", "codebase", "index", "token-efficient"]
     }
   ]
