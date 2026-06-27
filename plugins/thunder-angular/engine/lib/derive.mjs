@@ -25,7 +25,7 @@ export function derive(files) {
       ctxMap.set(id, {
         id, project, feature, name: feature,
         module: project, packages: [feature], // aliases so generic functional/emit code is reused
-        components: [], services: {}, modules: [], directives: [], pipes: [],
+        components: [], services: {}, modules: [], directives: [], pipes: [], guards: [],
         routes: [], di: {}, files: [], _hashes: [],
       });
     }
@@ -56,7 +56,7 @@ export function derive(files) {
         componentDeps.set(t.name, deps);
       } else if (stereo === 'service') {
         const dec = findDec(t.decorators, 'Injectable') || '';
-        ctx.services[t.name] = { providedIn: strVal(dec, 'providedIn'), deps };
+        ctx.services[t.name] = { providedIn: strVal(dec, 'providedIn'), deps, ...(t.http && t.http.length ? { http: t.http } : {}) };
       } else if (stereo === 'pipe') {
         const dec = findDec(t.decorators, 'Pipe') || '';
         ctx.pipes.push({ n: t.name, name: strVal(dec, 'name'), deps });
@@ -75,18 +75,24 @@ export function derive(files) {
         ctx.di[t.name] = deps;
       }
     }
+
+    // functional guards / interceptors / resolvers (modern Angular) — symbols with DI edges
+    for (const fn of (f.functionals || [])) {
+      ctx.guards.push({ n: fn.name, kind: fn.kind, ...(fn.deps.length ? { deps: fn.deps } : {}) });
+      if (fn.deps.length) ctx.di[fn.name] = fn.deps;
+    }
   }
 
-  // flows: route → component → injected services (deterministic, named later)
+  // flows: route → component → injected services (+ route guards), deterministic
   for (const ctx of ctxMap.values()) {
     for (const r of ctx.routes) {
       if (r.kind === 'component' && r.target) {
         const deps = componentDeps.get(r.target) || [];
-        const chain = [`route '${r.path || '/'}'`, r.target, ...deps];
-        r.flow = chain.join(' → ');
+        r.flow = [`route '${r.path || '/'}'`, r.target, ...deps].join(' → ');
       } else if (r.target) {
         r.flow = `route '${r.path || '/'}' → ${r.kind === 'redirect' ? '↪ ' + r.target : r.target}`;
       }
+      if (r.guards && r.guards.length && r.flow) r.flow += `  (guards: ${r.guards.join(', ')})`;
     }
   }
 

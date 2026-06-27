@@ -11,7 +11,7 @@ import { loadFunctional } from './functional.mjs';
 
 // Fingerprint of the parse-affecting engine code — invalidates cache.ndjson on an engine change.
 const LIB = dirname(fileURLToPath(import.meta.url));
-const ENGINE_HASH = shortHash(['lexer.mjs', 'parser.mjs'].map((f) => { try { return readFileSync(join(LIB, f), 'utf8'); } catch { return ''; } }).join('|'));
+const ENGINE_HASH = shortHash(['lexer.mjs', 'parser.mjs', 'derive.mjs', 'build.mjs'].map((f) => { try { return readFileSync(join(LIB, f), 'utf8'); } catch { return ''; } }).join('|'));
 
 /** Read Angular workspace projects (name + sourceRoot) from angular.json. */
 function projectsOf(root) {
@@ -26,17 +26,23 @@ function projectsOf(root) {
   return [{ name: basename(resolve(root)) || 'app', sourceRoot: 'src' }];
 }
 
+// Conventional container dirs that bundle many features — descend one level so each feature is its
+// own context (e.g. features/chat, features/documents) instead of a monolithic `features` context.
+const CONTAINER_DIRS = new Set(['features', 'pages', 'modules', 'domains', 'libs']);
+
+function featureOf(seg) {
+  if (seg.length <= 1) return 'app';
+  // a flat `features/foo.component.ts` (file directly under the container) stays at the container
+  if (seg.length > 2 && CONTAINER_DIRS.has(seg[0])) return `${seg[0]}.${seg[1]}`; // '.' keeps shard filenames flat
+  return seg[0];
+}
+
 function locate(rel, projects) {
   const proj = projects.find((p) => p.sourceRoot && (rel === p.sourceRoot || rel.startsWith(p.sourceRoot + '/'))) || projects[projects.length - 1];
   const appPrefix = proj.sourceRoot + '/app/';
   let feature = 'app';
-  if (rel.startsWith(appPrefix)) {
-    const seg = rel.slice(appPrefix.length).split('/');
-    feature = seg.length > 1 ? seg[0] : 'app';
-  } else if (rel.startsWith(proj.sourceRoot + '/')) {
-    const seg = rel.slice(proj.sourceRoot.length + 1).split('/');
-    feature = seg.length > 1 ? seg[0] : 'app';
-  }
+  if (rel.startsWith(appPrefix)) feature = featureOf(rel.slice(appPrefix.length).split('/'));
+  else if (rel.startsWith(proj.sourceRoot + '/')) feature = featureOf(rel.slice(proj.sourceRoot.length + 1).split('/'));
   return { project: proj.name, feature };
 }
 

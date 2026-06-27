@@ -138,9 +138,36 @@ function extractRoutes(raw, relPath) {
     else if (/loadChildren/.test(win)) { kind = 'lazy-children'; target = imp ? imp[1] : '(lazy)'; }
     else if (comp) { target = comp[1]; }
     else if (/children\s*:/.test(win)) { kind = 'parent'; }
-    routes.push({ path: m[1], target, kind, line: i + 1 });
+    // route guards (functional or class), e.g. canActivate: [authGuard, scopeGuard('aura:admin')]
+    const gm = win.match(/can(?:Activate|ActivateChild|Match|Deactivate)\s*:\s*\[([^\]]*)\]/);
+    const guards = gm ? gm[1].split(',').map((g) => g.trim().split('(')[0].trim()).filter(Boolean) : [];
+    routes.push({ path: m[1], target, kind, line: i + 1, ...(guards.length ? { guards } : {}) });
   }
   return routes;
+}
+
+const FN_KIND = { CanActivateFn: 'guard', CanActivateChildFn: 'guard', CanMatchFn: 'guard', CanDeactivateFn: 'guard', CanLoadFn: 'guard', HttpInterceptorFn: 'interceptor', ResolveFn: 'resolver' };
+const FN_RE = /^\s*export\s+const\s+(\w+)\s*:\s*(CanActivateFn|CanActivateChildFn|CanMatchFn|CanDeactivateFn|CanLoadFn|HttpInterceptorFn|ResolveFn)\b/;
+
+/** Modern Angular functional guards/interceptors/resolvers: `export const x: CanActivateFn = () => {…}`.
+ *  Captures the initializer span and its `inject(Y)` dependencies — so they are symbols with DI edges. */
+function extractFunctionals(cleanLines) {
+  const out = [];
+  for (let i = 0; i < cleanLines.length; i++) {
+    const m = cleanLines[i].match(FN_RE);
+    if (!m) continue;
+    let span = '', depth = 0, started = false;
+    for (let k = i; k < Math.min(i + 80, cleanLines.length); k++) {
+      const l = cleanLines[k];
+      span += l + '\n';
+      for (const ch of l) { if ('([{'.includes(ch)) { depth++; started = true; } else if (')]}'.includes(ch)) depth--; }
+      if (started && depth <= 0) break;
+      if (!started && /;\s*$/.test(l)) break;
+    }
+    const deps = [...new Set([...span.matchAll(/\binject\(\s*([A-Za-z_]\w*)/g)].map((x) => x[1]))];
+    out.push({ name: m[1], kind: FN_KIND[m[2]], deps, line: i + 1 });
+  }
+  return out;
 }
 
 /** Parse one TS/Angular file into LOCAL facts (cross-file resolution is DERIVE's job). */
@@ -231,6 +258,19 @@ export function parseFile(raw, relPath) {
       }
     }
 
+    // #4 HTTP facet: capture http.<verb>(…) / httpResource(…) inside a service method body and attach
+    // it to the enclosing class (its backend contract). Detect on the cleaned line, URL from the raw.
+    if (stack.length) {
+      const hv = cl.match(/(?:http\w*|HttpClient)\s*\.\s*(get|post|put|delete|patch)\b/i);
+      // httpResource(...) / httpResource<T>(...) is a reactive GET resource.
+      if (hv || /\bhttpResource\s*(?:<[^>]*>)?\s*\(/.test(cl)) {
+        const verb = (hv ? hv[1] : 'get').toUpperCase();
+        const url = (rl.match(/[`'"]([^`'"]*)[`'"]/) || [])[1] || null;
+        const cls = stack[stack.length - 1].type;
+        (cls.http ||= []).push({ verb, url });
+      }
+    }
+
     if (!consumed) pending = [];
 
     for (const ch of stripped) {
@@ -242,5 +282,6 @@ export function parseFile(raw, relPath) {
     }
   }
   file.routes = extractRoutes(raw, relPath);
+  file.functionals = extractFunctionals(cleanLines);
   return file;
 }

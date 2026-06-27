@@ -185,6 +185,11 @@ function cmdSym(root, sub, name) {
         if (t.name !== name && hay.some((s) => new RegExp(`\\b${name}\\b`).test(s))) hits.push(`${t.name}  ${fact.file}:${t.line}`);
       }
     }
+    // functional guards / interceptors / resolvers are symbols too
+    for (const fn of (fact.functionals || [])) {
+      if (sub === 'def') { if (fn.name === name) hits.push(`${fn.kind} ${fn.name}  ${fact.file}:${fn.line}`); }
+      else if (fn.name !== name && (fn.deps || []).includes(name)) hits.push(`${fn.kind} ${fn.name}  ${fact.file}:${fn.line}  (injects ${name})`);
+    }
   }
   if (!hits.length) console.log(`(aucun résultat pour ${name})`);
   else hits.forEach((h) => console.log(h));

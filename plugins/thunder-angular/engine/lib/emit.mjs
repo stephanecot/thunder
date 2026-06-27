@@ -116,7 +116,7 @@ export function emit(root, model, functional = {}) {
 
   // global route table (slim — flow lives in shards)
   if (writeIfChanged(join(dir, 'routes.yaml'),
-    dump({ routes: model.routes.map((r) => ({ path: r.path, target: r.target, kind: r.kind, ctx: r.ctx })) }))) changed++;
+    dump({ routes: model.routes.map((r) => ({ path: r.path, target: r.target, kind: r.kind, ...(r.guards ? { guards: r.guards } : {}), ctx: r.ctx })) }))) changed++;
 
   // grepable capability map
   const caps = model.contexts.map((c) => ({ id: c.id, purpose: functional[c.id]?.purpose || '', capabilities: functional[c.id]?.capabilities || [] }));
@@ -140,9 +140,10 @@ export function emit(root, model, functional = {}) {
         ...(f.capabilities ? { capabilities: f.capabilities } : {}),
         ...(f.business_rules ? { business_rules: f.business_rules } : {}),
         use_cases: c.routes.filter((r) => r.flow).map((r) => ({ name: f.intents?.[r.path] || r.target || r.path, flow: r.flow })),
-        routes: c.routes.map((r) => ({ path: r.path, target: r.target, kind: r.kind, ...(f.intents?.[r.path] ? { intent: f.intents[r.path] } : {}) })),
+        routes: c.routes.map((r) => ({ path: r.path, target: r.target, kind: r.kind, ...(r.guards ? { guards: r.guards } : {}), ...(f.intents?.[r.path] ? { intent: f.intents[r.path] } : {}) })),
         components: c.components.map((cp) => ({ n: cp.n, selector: cp.selector, ...(cp.standalone ? { standalone: true } : {}), ...(cp.inputs.length ? { inputs: cp.inputs } : {}), ...(cp.outputs.length ? { outputs: cp.outputs } : {}), ...(cp.deps.length ? { deps: cp.deps } : {}) })),
         services: c.services,
+        ...(c.guards.length ? { guards: c.guards } : {}),
         ...(c.modules.length ? { ng_modules: c.modules } : {}),
         ...(c.directives.length ? { directives: c.directives } : {}),
         ...(c.pipes.length ? { pipes: c.pipes } : {}),

@@ -43,3 +43,43 @@ theme/keywords are part of its matching corpus. `ask --facts` for punctual factu
 `tools/sweep-bench.mjs` (20 routed queries on `ngdemo`): **thunder wins 18/20, ~97% aggregate economy**
 (targets ≥18/20, ≥70%). The 2 remaining are punctual facts in tiny feature files (left as-is).
 Rerun: `node engine/tools/sweep-bench.mjs ngdemo`
+
+## ROUND 6 — correctness + per-feature granularity (IMPROVE-token-cost)
+
+Four fixes from `IMPROVE-token-cost.prompt.md`, measured on a real modern-Angular project
+(`aura/frontend`: standalone + `provideRouter`, **functional** guards/interceptors, `httpResource`)
+and reproduced on the enriched demo (now carries `features/chat`, `features/documents`, a functional
+guard + interceptor, and an `httpResource` service).
+
+| # | Fix | Gap closed |
+|---|---|---|
+| #1 P0 | `build.locate()` descends one level for container dirs (`features`/`pages`/`modules`/`domains`/`libs`) → one context **per feature** instead of a monolithic `features`. Debrayable; never explodes a dir without sub-dirs. | Q3 «how does chat work» was drowned in ~90 % noise (+6 % vs raw) |
+| #2 P0 | New parser pass: `export const x: CanActivateFn\|HttpInterceptorFn\|ResolveFn = …` → first-class symbol with stereotype + its `inject(X)` DI edges (`ctx.guards`, `ctx.di`). | `sym`/DI missed functional guards (3 injectors instead of 4) |
+| #3 P1 | `extractRoutes` captures `canActivate`/`canMatch`/`canActivateChild`/`canDeactivate` → `guards:[…]` on the route, emitted in `routes.yaml` + flow. | routes answer never cited the guards |
+| #4 P1 | Service method/field bodies scanned for `http.<verb>(`, `httpResource<T>(` + URL literal → `http:[{verb,url}]` facet on the service. | backend contract invisible (Q4 forced back to `.ts`) |
+
+`ENGINE_HASH` extended to `derive.mjs` + `build.mjs` (was lexer+parser only) so the granularity/HTTP
+derivation changes auto-invalidate `cache.ndjson`.
+
+### data-token bench (overheads excluded) — `node engine/tools/data-bench.mjs demo`
+
+| Question | fix | card-only | full-shard | raw-ts | thunder/raw |
+|---|---|---:|---:|---:|---:|
+| Q1 routes+guards | #3 | 153 | 300 | 194 | 79 % |
+| Q2 who-injects AuthService | #2 | 38 | 172 | 318 | 12 % |
+| Q3 chat feature flow | #1 | 51 | 177 | 334 | **15 %** |
+| Q4 documents HTTP endpoints | #4 | 52 ✗ | 169 | 176 | 96 % |
+| Q5 chat context/role | #1 | 51 | 177 | 334 | 15 % |
+
+- **Q3 (feature flow): 15 %** of raw data tokens (target ≤ 50 %) — granularity broke the old +6 %. ✅
+- **Aggregate: 34 %** of raw (target ≤ 50 %). ✅
+- `✗` = card tier doesn't fully answer (HTTP verbs live in tier-2); the cheapest **correct** tier is scored.
+
+### Correctness proven WITHOUT reading any `.ts`
+- `sym refs AuthService` → **4** injectors incl. `guard authGuard` + `interceptor authInterceptor (injects AuthService)`.
+- `routes.yaml` → `users`/`chat`/`documents` carry `guards: [authGuard]` (`canActivate`/`canMatch`).
+- `features.documents.yaml` → `KnowledgeService.http: [GET, POST, DELETE /api/v1/documents]`;
+  `features.chat.yaml` → `ChatService.http: [GET …/chat/history (httpResource), POST, DELETE]`.
+
+No regression: `node --test` 34/34, `sweep-bench ngdemo` 18/20 ~97 %.
+Rerun: `node engine/thunder.mjs build demo --force && node engine/tools/data-bench.mjs demo`
