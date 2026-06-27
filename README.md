@@ -14,6 +14,13 @@ can explore, understand and navigate a codebase while spending **2–3 orders of
 | [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | `0.1.4` | 2 — multi-framework detection, Tier-3 | ⭐⭐ Stable |
 | [`thunder-node`](./plugins/thunder-node) | Node.js backend (Express / Fastify / NestJS) | `0.0.2` | 1 — initial (multi-framework) | ⭐ New |
 | [`thunder-react`](./plugins/thunder-react) | React.js (components / hooks / React Router) | `0.0.1` | 1 — initial | ⭐ New |
+| [`thunder-mind`](./plugins/thunder-mind) | **Any** — shared project-decision index (companion) | `0.1.0` | 1 — initial | ⭐⭐ Stable |
+
+> The first five are **codebase-comprehension** plugins (one per language/stack). **`thunder-mind`** is a
+> different beast: a **framework-agnostic decision index** — it captures architectural / technical /
+> functional decisions as committed YAML (`.thunder/mind/decisions/`) and recalls them (inverted-index +
+> BM25, bounded alignment brief) so two developers' AIs reuse the same decisions instead of diverging.
+> It composes with any of the language plugins.
 
 > **Maturity** reflects how many dedicated optimization rounds a plugin has had (each round = a measured
 > token-cost or correctness improvement, documented in the plugin's `BENCHMARK.md`). ⭐ New = freshly
