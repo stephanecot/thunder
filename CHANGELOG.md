@@ -10,14 +10,30 @@ the version a change applies to is noted inline. Per-plugin measured results liv
 
 | Plugin | Version |
 |---|---|
-| `thunder-java` | 0.1.10 |
-| `thunder-angular` | 0.1.11 |
-| `thunder-python` | 0.1.5 |
-| `thunder-node` | 0.0.3 |
-| `thunder-react` | 0.0.2 |
+| `thunder-java` | 0.1.11 |
+| `thunder-angular` | 0.1.12 |
+| `thunder-python` | 0.1.6 |
+| `thunder-node` | 0.0.4 |
+| `thunder-react` | 0.0.3 |
 | `thunder-mind` | 0.2.0 |
 
 ## [Unreleased]
+
+## [2026-06-27a]
+
+### Added
+- **Per-project opt-in via a new `init` skill** (all framework plugins: java `0.1.11`, angular `0.1.12`,
+  python `0.1.6`, node `0.0.4`, react `0.0.3`) — `/<plugin>:<plugin>-init` writes a committed marker
+  `.thunder/<lang>/config.yaml` (`enabled: true`) and builds the technical index. New `init` engine
+  command (`node thunder.mjs init <root>`).
+
+### Fixed
+- **Plugins polluted unrelated projects** — an installed framework plugin's SessionStart hook ran
+  `ensure`→`build` on *every* project, creating empty `.thunder/<lang>/` directories on repos with no
+  matching sources. Indexing is now **opt-in**: `ensure` and the PostToolUse hook stay completely idle
+  (no directory, no tokens) until the project is initialized (committed `.thunder/<lang>/config.yaml`).
+  An explicit `build`/`reindex` that produces a non-empty index also writes the marker, so the index is
+  never left orphaned from the hooks.
 
 ## [2026-06-27]
 

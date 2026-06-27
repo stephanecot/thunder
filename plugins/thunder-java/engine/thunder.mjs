@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import { existsSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from './lib/build.mjs';
 import { dump } from './lib/yaml.mjs';
-import { appendDirty, drainDirty, cacheDir, readManifest } from './lib/cache.mjs';
+import { appendDirty, drainDirty, cacheDir, readManifest, ensureDir, projectConfig, isInitialized } from './lib/cache.mjs';
 import * as ledger from './lib/common/ledger.mjs';
 import { prune } from './lib/common/prune.mjs';
 import * as debug from './lib/common/debug.mjs';
@@ -108,13 +108,37 @@ function cmdAskDetail(root, ctxId) {
 function cmdBuild(root, force) {
   const t0 = process.hrtime.bigint();
   const r = build(root, { force });
+  if (r.total > 0 && !isInitialized(root)) writeFileSync(projectConfig(root), INIT_CONFIG); // explicit build opts this project in
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
   console.log(`thunder: ${r.total} fichiers (${r.parsed} parsés, ${r.reused} réutilisés, ${r.errors} erreurs)` +
     `${r.engineBust ? ' [cache invalidé: moteur modifié ou --force]' : ''} → ` +
     `${r.model.modules.length} modules, ${r.model.contexts.length} contextes, ${r.model.endpoints.length} endpoints · ${r.changed} shards écrits · ${ms.toFixed(0)}ms`);
 }
 
+const INIT_CONFIG = `# thunder-java — committed project marker. Its presence turns indexing ON for this project.
+# Without it, thunder-java stays completely idle (no .thunder/java/ dir, no tokens spent).
+enabled: true
+language: java
+`;
+
+// Opt-in marker: thunder-java only indexes a project once `init` has been run there
+// (committed .thunder/java/config.yaml). This keeps it idle on unrelated projects.
+function cmdInit(root) {
+  const cfg = projectConfig(root);
+  const already = existsSync(cfg);
+  ensureDir(cacheDir(root));
+  if (!already) writeFileSync(cfg, INIT_CONFIG);
+  drainDirty(root);
+  const r = build(root, { force: true });
+  if (r.total === 0) {
+    console.log(`thunder-java: initialized (${cfg}) — no Java sources found yet; the index will fill as you add them.`);
+    return;
+  }
+  console.log(`thunder-java: ${already ? 're-' : ''}initialized & indexed (${r.total} files) under .thunder/java/ — commit it to share. Run /thunder-java:thunder-java-reindex to infer the functional layer.`);
+}
+
 function cmdEnsure(root) {
+  if (!isInitialized(root)) return; // opt-in: idle until `thunder-java-init` runs on this project
   drainDirty(root);
   const r = build(root);
   if (r.total === 0) return; // not a Java/Maven project — stay silent (hook runs everywhere)
@@ -333,6 +357,7 @@ if (flags.has('--selftest')) {
 } else {
   switch (cmd) {
     case 'build': cmdBuild(R(pos[1]), flags.has('--force')); break; // build [root] [--force]
+    case 'init': cmdInit(R(pos[1])); break;                       // init [root] — opt this project in
     case 'ensure': cmdEnsure(R(pos[1])); break;                     // ensure [root]
     case 'overview': cmdOverview(R(pos[1])); break;                 // overview [root]
     case 'endpoints': cmdEndpoints(R(pos[1])); break;              // endpoints [root]

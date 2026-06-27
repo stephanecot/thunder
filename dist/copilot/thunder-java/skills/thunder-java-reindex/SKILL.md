@@ -5,6 +5,11 @@ description: 'Rebuild or refresh thunder''s index of a Java/Spring project. Refr
 
 # reindex — keep the index up to date
 
+
+> **Prerequisite:** opt the project in first — run `/thunder-java-init` once (it writes the committed `.thunder/java/config.yaml` marker). Running this skill also writes that marker when it builds a non-empty index, so reindex works standalone too.
+
+> **Prerequisite:** the project must be opted in first — run `/thunder-java-init` once (it writes the committed `.thunder/java/config.yaml` marker). Running this skill also writes that marker when it builds a non-empty index, so reindex works standalone too.
+
 Two layers, two regimes: the **technical** one is free and deterministic; the **functional** one costs
 tokens (inference) → it is **budgeted and never run silently**.
 

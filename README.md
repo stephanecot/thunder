@@ -5,15 +5,23 @@ for **both Claude Code and GitHub Copilot CLI**. Each plugin builds a hierarchic
 technical layer + inferred functional layer) and exposes it through skills, an agent and hooks — so you
 can explore, understand and navigate a codebase while spending **2–3 orders of magnitude fewer tokens**.
 
+> ### 🆕 Framework plugins are now **opt-in per project**
+> Installing a framework plugin no longer does anything on its own. Each project must be **explicitly
+> enabled once** with `/<plugin>:<plugin>-init` (e.g. `/thunder-java:thunder-java-init`). Until you run it,
+> the plugin stays **completely idle** — it creates **no `.thunder/` directory and spends no tokens**, so a
+> plugin you installed never spins up on unrelated repos. `init` writes a small **committed** marker
+> `.thunder/<lang>/config.yaml` (`enabled: true`); commit it and the whole team's hooks pick the project up
+> automatically. This fixes plugins previously indexing every project they were loaded in.
+
 ## Plugins
 
 | Plugin | Stack | Version | Optimization rounds | Maturity |
 |---|---|---|---|---|
-| [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | `0.1.10` | 7 — R2…R5.5, two-tier card/detail, Tier-3 | ⭐⭐⭐ Mature |
-| [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | `0.1.11` | 5 — granularity, functional guards + HTTP (R2), ≥50-query sweep, Tier-3 | ⭐⭐⭐ Mature |
-| [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | `0.1.5` | 3 — multi-framework detection, Tier-3 | ⭐⭐ Stable |
-| [`thunder-node`](./plugins/thunder-node) | Node.js backend (Express / Fastify / NestJS) | `0.0.3` | 2 — initial (multi-framework) | ⭐ New |
-| [`thunder-react`](./plugins/thunder-react) | React.js (components / hooks / React Router) | `0.0.2` | 2 — initial | ⭐ New |
+| [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | `0.1.11` | 7 — R2…R5.5, two-tier card/detail, Tier-3 | ⭐⭐⭐ Mature |
+| [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | `0.1.12` | 5 — granularity, functional guards + HTTP (R2), ≥50-query sweep, Tier-3 | ⭐⭐⭐ Mature |
+| [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | `0.1.6` | 3 — multi-framework detection, Tier-3 | ⭐⭐ Stable |
+| [`thunder-node`](./plugins/thunder-node) | Node.js backend (Express / Fastify / NestJS) | `0.0.4` | 2 — initial (multi-framework) | ⭐ New |
+| [`thunder-react`](./plugins/thunder-react) | React.js (components / hooks / React Router) | `0.0.3` | 2 — initial | ⭐ New |
 | [`thunder-mind`](./plugins/thunder-mind) | **Any** — shared project-decision index (companion) | `0.2.0` | 2 — tiered constitution + reliable capture | ⭐⭐ Stable |
 
 > The first five are **codebase-comprehension** plugins (one per language/stack). **`thunder-mind`** is a
@@ -64,9 +72,14 @@ silently · the shared **Tier-3** layer (answer cache · pruning · per-framewor
 
 ### The index is committed & shared (not a throwaway cache)
 
+A framework plugin is **opt-in per project**: it stays idle until you run `/<plugin>:<plugin>-init`, which
+writes the committed marker **`.thunder/<language>/config.yaml`** (`enabled: true`). That marker — not the
+mere presence of the plugin — is what turns the SessionStart/edit hooks on, so a developer with the plugin
+installed never has it spin up on unrelated repos.
+
 The framework index lives at **`<project>/.thunder/<language>/`** and is **meant to be committed**
-(project-brief, `index.yaml`, per-context shards & cards, `capability-map.yaml`, routes/endpoints, and the
-inferred **`functional.json`**). Why commit it? The technical layer is free, but the **functional/business
+(the `config.yaml` marker, project-brief, `index.yaml`, per-context shards & cards, `capability-map.yaml`,
+routes/endpoints, and the inferred **`functional.json`**). Why commit it? The technical layer is free, but the **functional/business
 layer is inferred by the cartographer (it costs tokens)** — committing it lets the whole team **share one
 index on a branch** and **never re-spend tokens** re-inferring it. Only per-developer **volatile** files
 stay gitignored: `cache.ndjson`, `manifest.json`, `dirty.list`, `qa-ledger.ndjson`, and the local
@@ -82,10 +95,12 @@ commits its *decisions* instead.)
 /plugin install thunder-java@thunder          # install the plugin you want
 ```
 
-> ⚠️ **After installing a framework plugin, index the project once before querying** — it's a manual,
-> one-time step: run `/<plugin>:<plugin>-reindex` (e.g. `/thunder-java:thunder-java-reindex`). The skills
-> answer only from that index. A hook then keeps it fresh on edits. (`thunder-mind` builds its index on
-> first use via its own hook.)
+> ⚠️ **A framework plugin is opt-in per project** — installing it does nothing until you **initialize**
+> the project once: run `/<plugin>:<plugin>-init` (e.g. `/thunder-java:thunder-java-init`). Until then the
+> plugin stays **completely idle** — no `.thunder/` directory, no tokens — so it never touches unrelated
+> repos. `init` writes the committed marker `.thunder/<lang>/config.yaml` and builds the technical index;
+> then run `/<plugin>:<plugin>-reindex` to infer the functional layer. The skills answer only from that
+> index; a hook keeps it fresh on edits. (`thunder-mind` builds its index on first use via its own hook.)
 
 ### GitHub Copilot CLI
 

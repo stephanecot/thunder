@@ -4,7 +4,7 @@
 // so it never pollutes the model's context. No-op unless the project already has a
 // thunder index (avoids touching non-Java projects).
 import { existsSync } from 'node:fs';
-import { appendDirty, cacheDir } from '../engine/lib/cache.mjs';
+import { appendDirty, isInitialized } from '../engine/lib/cache.mjs';
 
 let input = '';
 process.stdin.setEncoding('utf8');
@@ -15,7 +15,7 @@ try {
   const ti = payload?.tool_input || payload?.toolInput || {};
   const file = ti.file_path || ti.filePath || ti.path || ti.file;
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
-  if (file && /\.(py|pyi|toml|cfg)$/.test(file) && existsSync(cacheDir(root))) {
+  if (file && /\.(py|pyi|toml|cfg)$/.test(file) && isInitialized(root)) {
     appendDirty(root, file);
   }
 } catch { /* never fail an edit because of a hook */ }

@@ -2,6 +2,9 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const cacheDir = (root) => join(root, '.thunder', 'node');
+// Committed opt-in marker: thunder only indexes a project once this exists (written by `init`).
+export const projectConfig = (root) => join(cacheDir(root), 'config.yaml');
+export const isInitialized = (root) => existsSync(projectConfig(root));
 
 export function ensureDir(dir) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

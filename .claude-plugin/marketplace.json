@@ -10,35 +10,35 @@
       "name": "thunder-java",
       "source": "./plugins/thunder-java",
       "description": "Token-minimal comprehension, exploration and navigation of Java/Spring Boot codebases (hierarchical YAML index: technical + inferred functional layer).",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "keywords": ["java", "spring-boot", "codebase", "index", "token-efficient"]
     },
     {
       "name": "thunder-angular",
       "source": "./plugins/thunder-angular",
       "description": "Token-minimal comprehension, exploration and navigation of Angular/TypeScript codebases (components, services, routes, NgModules, DI graph + inferred functional layer).",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "keywords": ["angular", "typescript", "codebase", "index", "token-efficient"]
     },
     {
       "name": "thunder-python",
       "source": "./plugins/thunder-python",
       "description": "Token-minimal comprehension, exploration and navigation of Python codebases — FastAPI / Flask / Django / plain (routes, models, classes, DI, framework-aware + inferred functional layer).",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "keywords": ["python", "fastapi", "flask", "django", "codebase", "index", "token-efficient"]
     },
     {
       "name": "thunder-node",
       "source": "./plugins/thunder-node",
       "description": "Token-minimal comprehension, exploration and navigation of Node.js backend codebases — Express / Fastify / NestJS (controllers, services, HTTP endpoints, DI graph, framework-aware + inferred functional layer).",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "keywords": ["nodejs", "express", "fastify", "nestjs", "typescript", "codebase", "index", "token-efficient"]
     },
     {
       "name": "thunder-react",
       "source": "./plugins/thunder-react",
       "description": "Token-minimal comprehension, exploration and navigation of React.js codebases (function/class components, custom hooks, React Router routes, prop & dependency graph + inferred functional layer).",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "keywords": ["react", "reactjs", "jsx", "tsx", "typescript", "react-router", "codebase", "index", "token-efficient"]
     },
     {

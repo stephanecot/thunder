@@ -6,6 +6,9 @@ allowed-tools: Bash, Task, AskUserQuestion
 
 # thunder-react reindex
 
+
+> **Prerequisite:** opt the project in first — run `/thunder-react:thunder-react-init` once (it writes the committed `.thunder/react/config.yaml` marker). Running this skill also writes that marker when it builds a non-empty index, so reindex works standalone too.
+
 Two layers: the **technical** one is free and deterministic; the **functional** one costs tokens
 (inference) → budgeted, never run silently.
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import { existsSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from './lib/build.mjs';
 import { dump } from './lib/yaml.mjs';
-import { appendDirty, drainDirty, readCache, cacheDir, readManifest } from './lib/cache.mjs';
+import { appendDirty, drainDirty, readCache, cacheDir, readManifest, ensureDir, projectConfig, isInitialized } from './lib/cache.mjs';
 import * as ledger from './lib/common/ledger.mjs';
 import { prune } from './lib/common/prune.mjs';
 import * as debug from './lib/common/debug.mjs';
@@ -17,13 +17,37 @@ import {
 function cmdBuild(root, force) {
   const t0 = process.hrtime.bigint();
   const r = build(root, { force });
+  if (r.total > 0 && !isInitialized(root)) writeFileSync(projectConfig(root), INIT_CONFIG); // explicit build opts this project in
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
   console.log(`thunder-react: ${r.total} fichiers (${r.parsed} parsés, ${r.reused} réutilisés, ${r.errors} erreurs)` +
     `${r.engineBust ? ' [cache invalidé: moteur modifié ou --force]' : ''} → ` +
     `${r.model.projects.length} projets, ${r.model.contexts.length} contextes, ${r.model.routes.length} routes · ${r.changed} shards · ${ms.toFixed(0)}ms`);
 }
 
+const INIT_CONFIG = `# thunder-react — committed project marker. Its presence turns indexing ON for this project.
+# Without it, thunder-react stays completely idle (no .thunder/react/ dir, no tokens spent).
+enabled: true
+language: react
+`;
+
+// Opt-in marker: thunder-react only indexes a project once `init` has been run there
+// (committed .thunder/react/config.yaml). This keeps it idle on unrelated projects.
+function cmdInit(root) {
+  const cfg = projectConfig(root);
+  const already = existsSync(cfg);
+  ensureDir(cacheDir(root));
+  if (!already) writeFileSync(cfg, INIT_CONFIG);
+  drainDirty(root);
+  const r = build(root, { force: true });
+  if (r.total === 0) {
+    console.log(`thunder-react: initialized (${cfg}) — no React sources found yet; the index will fill as you add them.`);
+    return;
+  }
+  console.log(`thunder-react: ${already ? 're-' : ''}initialized & indexed (${r.total} files) under .thunder/react/ — commit it to share. Run /thunder-react:thunder-react-reindex to infer the functional layer.`);
+}
+
 function cmdEnsure(root) {
+  if (!isInitialized(root)) return; // opt-in: idle until `thunder-react-init` runs on this project
   drainDirty(root);
   const r = build(root);
   if (r.total === 0) return;
@@ -287,6 +311,7 @@ if (flags.has('--selftest')) {
 } else {
   switch (cmd) {
     case 'build': cmdBuild(R(pos[1]), flags.has('--force')); break;
+    case 'init': cmdInit(R(pos[1])); break;                       // init [root] — opt this project in
     case 'ensure': cmdEnsure(R(pos[1])); break;
     case 'overview': cmdOverview(R(pos[1])); break;
     case 'routes': cmdRoutes(R(pos[1])); break;

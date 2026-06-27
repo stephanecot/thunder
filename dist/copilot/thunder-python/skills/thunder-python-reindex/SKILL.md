@@ -5,6 +5,9 @@ description: 'Rebuild or refresh thunder-python''s index of a Python project. Re
 
 # reindex — keep the index up to date
 
+
+> **Prerequisite:** opt the project in first — run `/thunder-python-init` once (it writes the committed `.thunder/python/config.yaml` marker). Running this skill also writes that marker when it builds a non-empty index, so reindex works standalone too.
+
 Two layers: the **technical** one is free and deterministic; the **functional** one costs tokens → budgeted,
 never run silently.
 

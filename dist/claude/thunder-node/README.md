@@ -1,14 +1,15 @@
 # thunder-node ⚡
 
-## ⚠️ First: index the project (required — manual, one-time)
+## ⚠️ First: enable & index the project (required — manual, one-time)
 
-The skills answer **only** from a pre-built index. **Before your first query, run the indexer once:**
+thunder-node stays **completely idle** on a project until you opt it in — no `.thunder/` directory, no tokens — so it never touches unrelated repos. The skills answer **only** from a pre-built index. **Enable it here once:**
 
 ```
-/thunder-node:thunder-node-reindex
+/thunder-node:thunder-node-init      # opt this project in + build the technical index
+/thunder-node:thunder-node-reindex   # (optional) infer the functional/business layer
 ```
 
-The **technical** layer builds free & instantly; the **functional/business** layer is inferred once by
+`init` writes the committed marker `.thunder/node/config.yaml` (its presence is what enables the hooks — commit it to share). The **technical** layer builds free & instantly; the **functional/business** layer is inferred once by
 the cartographer agent (budgeted & confirmed). `codemap` / `grok` / `sym` won't return anything useful
 until the index exists. After this first run a hook keeps it fresh on edits automatically; re-run
 `reindex` after a large refactor or to refresh the functional layer.

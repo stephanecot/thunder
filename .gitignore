@@ -19,9 +19,10 @@ node_modules/
 **/.thunder/gains.md
 **/.thunder/*/.config
 
-# Framework index now COMMITTED under .thunder/<lang>/ (project-brief, index, shards, cards,
-# capability-map, routes/endpoints, functional.json) so two devs SHARE it on a branch and don't
-# re-spend tokens re-inferring the functional layer. Only the per-dev VOLATILE bits stay ignored:
+# Framework index now COMMITTED under .thunder/<lang>/ (config.yaml opt-in marker, project-brief, index,
+# shards, cards, capability-map, routes/endpoints, functional.json) so two devs SHARE it on a branch and
+# don't re-spend tokens re-inferring the functional layer. config.yaml (written by the `init` skill) is
+# the committed opt-in marker — keep it tracked. Only the per-dev VOLATILE bits stay ignored:
 **/.thunder/*/cache.ndjson
 **/.thunder/*/manifest.json
 **/.thunder/*/dirty.list
