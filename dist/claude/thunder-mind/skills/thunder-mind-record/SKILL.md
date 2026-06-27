@@ -1,6 +1,6 @@
 ---
 name: thunder-mind-record
-description: Capture a project decision (architectural, technical, functional, or convention) into the shared, committed thunder-mind index so the other developer's AI reuses it instead of diverging. Use when a real choice has been made — "record this decision", "let's standardize on X", "from now on we do Y", "note that we decided Z". Stores English-only, normalized YAML and detects conflicts/duplicates.
+description: Capture a project decision (architectural, technical, functional, or convention) into the shared, committed thunder-mind index so the other developer's AI reuses it instead of diverging. Trigger NOT ONLY on an explicit "record this decision" but whenever the user states a standing convention, preference, or behavioral directive in passing — even conversationally and in any language. English cues: "always do X", "from now on", "we should always", "let's standardize on X", "the rule is", "going forward", "note that we decided Z". French cues: "tu devrais toujours", "à partir de maintenant", "on standardise", "la règle c'est", "désormais", "on décide de". If the user expresses a lasting project rule, capture it (don't just keep it in your own memory). Stores English-only, normalized YAML and detects conflicts/duplicates.
 allowed-tools: Bash, Task, AskUserQuestion
 ---
 

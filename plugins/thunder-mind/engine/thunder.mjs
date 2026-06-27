@@ -36,11 +36,21 @@ function cmdEnsure(root) {
   const r = build(root);
   if (r.total === 0) return;
   const c = conflicts(r.model, root);
-  console.log(`thunder-mind: index frais (${r.model.N} décisions, ${r.model.domains.length} domaines` +
-    `${c.length ? `, ${c.length} conflit(s)/dérive(s) — /thunder-mind:thunder-mind-review` : ''}). ` +
-    `recall AVANT de décider · /thunder-mind:thunder-mind-recall · /thunder-mind:thunder-mind-record`);
-  // inject the bounded alignment brief so both devs' AI starts aligned
+  console.log(`thunder-mind: ${r.model.N} décisions, ${r.model.domains.length} domaines` +
+    `${c.length ? `, ${c.length} conflit(s)/dérive(s) — /thunder-mind:thunder-mind-review` : ''}. ` +
+    `recall AVANT de décider. Tier-0 constitution ci-dessous ; un domaine → lis sa carte ` +
+    `(domains/<domain>.card.yaml) ; tout le catalogue → domain-map.yaml. Rien n'est perdu : recall couvre 100%.`);
+  // inject ONLY the bounded tier-0 constitution (global invariants) — flat cost as the corpus grows
   try { process.stdout.write('\n' + readFileSync(join(cacheDir(root), 'brief.yaml'), 'utf8')); } catch { /* none */ }
+}
+
+/** Print one domain's tier-1 card (on demand). Builds first so it's fresh. */
+function cmdCard(root, domain) {
+  if (!domain) { console.error('usage: card <domain> [root]'); process.exit(1); }
+  build(root);
+  const p = join(cacheDir(root), 'domains', `${domain}.card.yaml`);
+  try { process.stdout.write(readFileSync(p, 'utf8')); }
+  catch { console.log(`thunder-mind: no card for domain "${domain}" — grep domain-map.yaml or recall "${domain} <keywords>"`); }
 }
 
 const cmdTouch = (root, file) => { if (file) appendDirty(root, file); };
@@ -128,9 +138,16 @@ async function readStdin() {
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** Record a decision: JSON on stdin (scribe output) → validated YAML file → rebuild. */
+/** Strip a ```json … ``` (or bare ```) markdown wrapper an agent may add, so a verbatim pipe still parses. */
+function unfence(s) {
+  const t = String(s).trim();
+  const m = t.match(/^```[a-zA-Z]*\s*\n?([\s\S]*?)\n?```$/);
+  return (m ? m[1] : t).trim();
+}
+
 async function cmdAdd(root, { date, author, force }) {
   let d;
-  try { d = JSON.parse(await readStdin()); } catch (e) { console.error('invalid JSON on stdin:', e.message); process.exit(1); }
+  try { d = JSON.parse(unfence(await readStdin())); } catch (e) { console.error('invalid JSON on stdin:', e.message); process.exit(1); }
   d.date = d.date || date || today();
   d.status = d.status || 'active';
   d.domain = d.domain || 'general';
@@ -243,6 +260,7 @@ if (flags.has('--selftest')) {
       else cmdRecall(R(pos[2]), pos[1], { top: numFlag('--top'), domain: flagVal('--domain'), all: flags.has('--all') });
       break;
     case 'brief': cmdBrief(R(pos[1])); break;
+    case 'card': cmdCard(R(pos[2]), pos[1]); break;
     case 'add': cmdAdd(R(pos[1]), { date: flagVal('--date'), author: flagVal('--author'), force: flags.has('--force') }); break;
     case 'conflicts': cmdConflicts(R(pos[1]), flags.has('--json')); break;
     case 'validate': cmdValidate(R(pos[1]), flags.has('--json')); break;

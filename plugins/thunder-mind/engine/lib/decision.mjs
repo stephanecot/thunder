@@ -10,9 +10,15 @@ export const TYPES = ['architecture', 'technical', 'functional', 'convention'];
 export const STATUSES = ['proposed', 'active', 'superseded', 'deprecated'];
 export const CONFIDENCES = ['high', 'medium', 'low'];
 export const ACTIVE_STATUSES = ['active', 'proposed'];
+export const SCOPES = ['global', 'domain', 'local'];
+
+// `scope` controls WHEN a decision is loaded (perf), never WHETHER it's reachable (recall always covers all):
+//   global = cross-cutting invariant → always injected (the "constitution") ; domain = loaded via its
+//   domain card on demand ; local = only via recall. Inferred when absent (back-compat).
+export const scopeOf = (d) => d.scope || ((d.type === 'architecture' || d.type === 'convention') ? 'global' : 'domain');
 
 // Field order on disk (readability). Lists/maps emitted block-style, scalars JSON-quoted when needed.
-const SCALARS = ['id', 'title', 'type', 'status', 'domain', 'date', 'context', 'decision', 'rationale', 'supersedes', 'confidence'];
+const SCALARS = ['id', 'title', 'type', 'status', 'scope', 'domain', 'date', 'context', 'decision', 'rationale', 'supersedes', 'confidence'];
 const LISTS = ['authors', 'consequences', 'tags', 'conflicts_with', 'evidence'];
 const FLOWMAP_LISTS = ['alternatives']; // list of small {choice, rejected_because} maps
 const MAPS = ['evidence_hashes'];        // path -> content hash captured at record time
@@ -138,6 +144,7 @@ export function validateDecision(d) {
   }
   if (d.type && !TYPES.includes(d.type)) errors.push(`invalid type: ${d.type} (expected ${TYPES.join('|')})`);
   if (d.status && !STATUSES.includes(d.status)) errors.push(`invalid status: ${d.status} (expected ${STATUSES.join('|')})`);
+  if (d.scope && !SCOPES.includes(d.scope)) errors.push(`invalid scope: ${d.scope} (expected ${SCOPES.join('|')})`);
   if (d.confidence && !CONFIDENCES.includes(d.confidence)) errors.push(`invalid confidence: ${d.confidence}`);
   if (d.date && !/^\d{4}-\d{2}-\d{2}$/.test(String(d.date))) errors.push(`invalid date (want YYYY-MM-DD): ${d.date}`);
   // English-only index is a hard project rule → flag likely non-English prose (warning, not fatal).

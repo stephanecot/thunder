@@ -45,3 +45,11 @@ costs ~0.2k. **Not spawning an agent IS the optimization.**
 
 > If the index is empty or `_FRENCH_/non-English text appears, the index must stay English — suggest a
 > re-record. If nothing matches, you get the project brief automatically.
+
+## Tiers — load on demand, never everything
+The SessionStart injection is only the **tier-0 constitution** (cross-cutting invariants). For more:
+- **Working in a domain?** Read its card: `node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" card <domain> "${CLAUDE_PROJECT_DIR}"` (or `Read .claude/cache/thunder-mind/domains/<domain>.card.yaml`).
+- **A specific concern?** `recall "<keywords>"` (this skill).
+- **Need the exhaustive list?** grep `.claude/cache/thunder-mind/domain-map.yaml` (every decision).
+
+Nothing is dropped: recall + domain-map reach **100%** of decisions regardless of corpus size.

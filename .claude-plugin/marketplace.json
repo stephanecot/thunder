@@ -45,7 +45,7 @@
       "name": "thunder-mind",
       "source": "./plugins/thunder-mind",
       "description": "Framework-agnostic shared project-decision index: capture architectural / technical / functional decisions as committed YAML and recall them (inverted-index + BM25, bounded alignment brief) so two developers' AIs reuse the same decisions instead of diverging.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "keywords": ["decisions", "adr", "knowledge", "alignment", "index", "token-efficient"]
     }
   ]

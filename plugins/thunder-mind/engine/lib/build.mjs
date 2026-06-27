@@ -7,16 +7,20 @@ import {
   cacheDir, decisionsDir, ensureDir,
   readCache, writeCache, readManifest, writeManifest,
 } from './cache.mjs';
+import { mkdirSync, readdirSync } from 'node:fs';
 import {
-  listDecisionFiles, parseDecision, validateDecision, idFromRel, ACTIVE_STATUSES,
+  listDecisionFiles, parseDecision, validateDecision, idFromRel, ACTIVE_STATUSES, scopeOf,
 } from './decision.mjs';
 
 // Bump when retrieval/emit semantics change → invalidates the Tier-3 answer ledger.
-export const ENGINE_VERSION = 'thunder-mind/1';
+export const ENGINE_VERSION = 'thunder-mind/2';
 const ENGINE_HASH = shortHash(ENGINE_VERSION);
 
-const BRIEF_PER_DOMAIN = 6;   // cap structuring decisions shown per domain in the brief
-const BRIEF_MAX = 40;         // hard cap on brief entries (keeps SessionStart injection bounded)
+// Bounds keep the ALWAYS-INJECTED footprint flat as the corpus grows. They NEVER drop a decision:
+// the full catalog (domain-map.yaml) + the inverted index (recall) always cover 100% — a capped view
+// just appends a "+N more — recall / domain-map.yaml" pointer.
+const CONSTITUTION_MAX = 30;  // cross-cutting invariants injected at SessionStart (global scope; few by nature)
+const CARD_MAX = 25;          // active decisions shown in a per-domain card (loaded on demand)
 
 /** Searchable text for one decision (drives both the inverted index and recall scoring). */
 function haystack(d) {
@@ -57,22 +61,44 @@ export function buildModel(decisions) {
   };
 }
 
-/** Bounded alignment digest: per-domain counts + the most structuring ACTIVE decisions. */
+const active = (d) => ACTIVE_STATUSES.includes(d.status);
+const structuring = (d) => (d.type === 'architecture' || d.type === 'convention');
+const cardRel = (domain) => `domains/${domain}.card.yaml`;
+
+/**
+ * TIER-0 CONSTITUTION — the only thing injected at SessionStart. Bounded by the number of cross-cutting
+ * invariants (scope:global, active), NOT by the corpus size. Everything else is on demand: per-domain
+ * cards (tier-1) + recall (tier-2). NO decision is lost — domain-map.yaml lists them all, recall reaches all.
+ */
 function briefOf(model) {
-  const structuring = (d) => (d.type === 'architecture' || d.type === 'convention');
-  const picks = [];
-  for (const dm of model.domains) {
-    const active = model.decisions
-      .filter((d) => d.domain === dm.name && ACTIVE_STATUSES.includes(d.status))
-      .sort((a, b) => (structuring(b) - structuring(a)) || String(b.date).localeCompare(String(a.date)))
-      .slice(0, BRIEF_PER_DOMAIN);
-    for (const d of active) picks.push({ id: d.id, type: d.type, domain: d.domain, title: d.title, decision: d.decision });
-  }
+  const invariants = model.decisions.filter((d) => active(d) && scopeOf(d) === 'global')
+    .sort((a, b) => (structuring(b) - structuring(a)) || String(b.date).localeCompare(String(a.date)));
+  // LEAN entries (id + type + title) keep the always-injected footprint flat; full text is one
+  // `card`/`recall` away. id already carries the domain, so we don't repeat it.
+  const constitution = invariants.slice(0, CONSTITUTION_MAX)
+    .map((d) => ({ id: d.id, type: d.type, title: d.title }));
   return {
     meta: { decisions: model.N, domains: model.domains.length, by_status: model.byStatus },
-    domains: model.domains.map((d) => ({ name: d.name, count: d.count, active: d.active })),
-    key_decisions: picks.slice(0, BRIEF_MAX),
-    note: picks.length > BRIEF_MAX ? `+${picks.length - BRIEF_MAX} more — use recall "<keywords>"` : 'use recall "<keywords>" before deciding',
+    // every domain is listed (no loss) with a pointer to its on-demand card
+    domains: model.domains.map((d) => ({ name: d.name, active: d.active, count: d.count, card: cardRel(d.name) })),
+    constitution,
+    ...(invariants.length > CONSTITUTION_MAX ? { constitution_note: `+${invariants.length - CONSTITUTION_MAX} more global invariants — see domain-map.yaml` } : {}),
+    how_to_go_deeper: 'Working in a domain → read its `domains/<domain>.card.yaml`. Specific concern → `recall "<keywords>"`. '
+      + 'Full catalog of EVERY decision → domain-map.yaml. Nothing here is dropped: recall + domain-map reach 100%.',
+  };
+}
+
+/** TIER-1 per-domain cards — active decisions of one domain (structuring first), loaded on demand. */
+function domainCard(model, dm) {
+  const all = model.decisions.filter((d) => d.domain === dm.name && active(d))
+    .sort((a, b) => (structuring(b) - structuring(a)) || String(b.date).localeCompare(String(a.date)));
+  return {
+    card: {
+      domain: dm.name, active: dm.active, total: dm.count,
+      decisions: all.slice(0, CARD_MAX).map((d) => ({ id: d.id, type: d.type, scope: scopeOf(d), title: d.title, decision: d.decision })),
+      ...(all.length > CARD_MAX ? { note: `+${all.length - CARD_MAX} more active in this domain — recall "${dm.name} <keywords>" or grep domain-map.yaml` }
+        : { note: `grep domain-map.yaml for superseded/deprecated; recall "<keywords>" for any concern` }),
+    },
   };
 }
 
@@ -83,17 +109,26 @@ export function emit(root, model) {
 
   writeFileSync(join(dir, 'index.yaml'), dump({
     meta: { decisions: model.N, domains: model.domains.length, by_type: model.byType, by_status: model.byStatus,
-      drill: 'domain-map.yaml (grep) · brief.yaml (overview) · recall "<keywords>"' },
+      drill: 'brief.yaml (tier-0 constitution) · domains/<domain>.card.yaml (tier-1, on demand) · recall "<keywords>" (tier-2) · domain-map.yaml (full catalog)' },
     domains: model.domains,
   }));
 
+  // FULL catalog — EVERY decision, one line each. The "no loss" backbone (grepable, complete).
   writeFileSync(join(dir, 'domain-map.yaml'), dump(
-    model.decisions.map((d) => ({ id: d.id, type: d.type, status: d.status, domain: d.domain, title: d.title }))
+    model.decisions.map((d) => ({ id: d.id, type: d.type, status: d.status, scope: scopeOf(d), domain: d.domain, title: d.title }))
   ));
 
+  // tier-0 constitution (the only thing injected at SessionStart)
   writeFileSync(join(dir, 'brief.yaml'), dump(briefOf(model)));
 
-  // inverted index, one term per line: {"t":"rls","ids":["auth/...","..."]}
+  // tier-1 per-domain cards (loaded on demand). Prune stale ones so removed domains don't linger.
+  const cardsDir = join(dir, 'domains');
+  mkdirSync(cardsDir, { recursive: true });
+  const wanted = new Set(model.domains.map((d) => `${d.name}.card.yaml`));
+  try { for (const f of readdirSync(cardsDir)) if (f.endsWith('.card.yaml') && !wanted.has(f)) rmSync(join(cardsDir, f)); } catch { /* none */ }
+  for (const dm of model.domains) writeFileSync(join(cardsDir, `${dm.name}.card.yaml`), dump(domainCard(model, dm)));
+
+  // inverted index, one term per line: {"t":"rls","ids":["auth/...","..."]} — covers ALL decisions (recall reaches 100%)
   const lines = [...model.postings.entries()].sort((a, b) => a[0].localeCompare(b[0]))
     .map(([t, ids]) => JSON.stringify({ t, ids: [...ids].sort() }));
   writeFileSync(join(dir, 'postings.ndjson'), lines.join('\n') + (lines.length ? '\n' : ''));
@@ -149,4 +184,5 @@ export function resetIndex(root) {
   for (const f of ['cache.ndjson', 'manifest.json', 'index.yaml', 'domain-map.yaml', 'brief.yaml', 'postings.ndjson']) {
     try { const p = join(dir, f); if (existsSync(p)) rmSync(p); } catch { /* ignore */ }
   }
+  try { rmSync(join(dir, 'domains'), { recursive: true, force: true }); } catch { /* ignore */ }
 }

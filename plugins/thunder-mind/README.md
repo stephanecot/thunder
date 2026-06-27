@@ -71,12 +71,24 @@ node $ENG validate <root> [--json]             # schema + English check (CI)
 node $ENG prune [file] <root>                  # Tier-3 tool-output pruning
 ```
 
-### Performance at scale
+### Performance at scale — three tiers, flat startup, zero loss
 
-The recall path uses an **inverted index** + an idf-weighted **funnel** (candidates → score → enrich only
-the top 1–3), so cost stays flat as the corpus grows. On a synthetic **2 000-decision** corpus
-(`node engine/tools/gen-minddemo.mjs <dir> 2000`): build ≈ 90 ms, recall ≈ flat ~1.2 KB payload in well
-under a second. Superseded/deprecated decisions are excluded from the default hot set.
+Decisions are **one YAML file each**, but nothing loads them all. The context cost is bounded by a tiered model:
+
+- **Tier-0 constitution** (`brief.yaml`, the ONLY thing injected at SessionStart): the cross-cutting
+  **invariants** only — active `scope: global` decisions (architecture/convention, or an explicit `scope`),
+  lean (id + type + title), hard-capped (~30). **Flat regardless of corpus size** (measured: ~5.8 KB at
+  *both* 200 and 2 000 decisions). Its footprint grows with the number of *invariants*, not the corpus.
+- **Tier-1 per-domain cards** (`domains/<domain>.card.yaml`, on demand): the active decisions of one
+  domain — read the card only when you work in that domain (`card <domain>`).
+- **Tier-2 recall** (`recall "<keywords>"`): inverted index + idf-weighted funnel (candidates → score →
+  enrich top 1-3); flat ~KB payload even at 2 000 decisions.
+
+**No decision is ever lost.** `domain-map.yaml` lists **every** decision (full catalog, grepable) and the
+inverted index covers 100% — a capped view (constitution / card) only appends a `+N more -> recall /
+domain-map.yaml` pointer. `scope` controls *when* a decision is loaded (perf), never *whether* it's
+reachable. On a synthetic **2 000-decision** corpus: build ~130 ms, startup injection flat ~1.5k tokens,
+recall flat. Superseded/deprecated decisions are excluded from the hot tiers (still in the catalog).
 
 ### Debug mode
 
