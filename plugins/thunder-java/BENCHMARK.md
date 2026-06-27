@@ -97,8 +97,106 @@ The bigger the repo, the wider the gap: the index cost stays **bounded** (top ~7
 - **7/7** answered inline without a sub-agent (target ≥ 6/7) ✅
 
 ## 7. Expanded sweep — ≥50 routed questions
-`node engine/tools/sweep-bench.mjs realdemo` (≥50 questions over every entity, each routed to its cheapest
-entry point): **thunder wins 95/95 (100%) · 67 735 vs 3 413 939 tok → 98% saved**.
+`node engine/tools/sweep-bench.mjs realdemo` — ≥50 questions over every entity (classes, services, models/controllers/components, features, contexts), each routed to its cheapest entry point and compared to the raw cost. thunder wins **95/95** (100%) · aggregate **67735 vs 3413939 tok → 98% saved**. Full per-question table (every tested question):
+
+| # | Query | route | thunder | raw | factor | winner |
+|---|---|---|---|---|---|---|
+| 1 | architecture overview | brief | 237 | 297525 | 1255.4× | thunder |
+| 2 | which modules exist | brief | 237 | 297525 | 1255.4× | thunder |
+| 3 | how is the app structured | brief | 237 | 297525 | 1255.4× | thunder |
+| 4 | list all endpoints | endpoints | 29575 | 43748 | 1.5× | thunder |
+| 5 | where is R0_0Service defined | sym | 49 | 1006 | 20.5× | thunder |
+| 6 | what does R0_0Service do | ask | 285 | 1006 | 3.5× | thunder |
+| 7 | where is R0_2Service defined | sym | 49 | 1006 | 20.5× | thunder |
+| 8 | what does R0_2Service do | ask | 285 | 1006 | 3.5× | thunder |
+| 9 | where is R0_30Service defined | sym | 51 | 1019 | 20.0× | thunder |
+| 10 | what does R0_30Service do | ask | 291 | 1019 | 3.5× | thunder |
+| 11 | where is R0_6Service defined | sym | 49 | 1006 | 20.5× | thunder |
+| 12 | what does R0_6Service do | ask | 285 | 1006 | 3.5× | thunder |
+| 13 | where is R1_16Service defined | sym | 51 | 1019 | 20.0× | thunder |
+| 14 | what does R1_16Service do | ask | 291 | 1019 | 3.5× | thunder |
+| 15 | where is R1_27Service defined | sym | 51 | 1019 | 20.0× | thunder |
+| 16 | what does R1_27Service do | ask | 291 | 1019 | 3.5× | thunder |
+| 17 | where is R1_38Service defined | sym | 51 | 1019 | 20.0× | thunder |
+| 18 | what does R1_38Service do | ask | 291 | 1019 | 3.5× | thunder |
+| 19 | where is R2_12Service defined | sym | 51 | 1019 | 20.0× | thunder |
+| 20 | what does R2_12Service do | ask | 291 | 1019 | 3.5× | thunder |
+| 21 | where is R2_23Service defined | sym | 51 | 1019 | 20.0× | thunder |
+| 22 | what does R2_23Service do | ask | 291 | 1019 | 3.5× | thunder |
+| 23 | where is R2_34Service defined | sym | 51 | 1019 | 20.0× | thunder |
+| 24 | what does R2_34Service do | ask | 291 | 1019 | 3.5× | thunder |
+| 25 | callers of R0_0Service | sym | 19 | 362 | 19.1× | thunder |
+| 26 | callers of R0_2Service | sym | 19 | 362 | 19.1× | thunder |
+| 27 | callers of R0_30Service | sym | 20 | 366 | 18.3× | thunder |
+| 28 | callers of R0_6Service | sym | 19 | 362 | 19.1× | thunder |
+| 29 | callers of R1_16Service | sym | 20 | 366 | 18.3× | thunder |
+| 30 | callers of R1_27Service | sym | 20 | 366 | 18.3× | thunder |
+| 31 | callers of R1_38Service | sym | 20 | 366 | 18.3× | thunder |
+| 32 | callers of R2_12Service | sym | 20 | 366 | 18.3× | thunder |
+| 33 | callers of R2_23Service | sym | 20 | 366 | 18.3× | thunder |
+| 34 | callers of R2_34Service | sym | 20 | 366 | 18.3× | thunder |
+| 35 | find the R0_0Controller class | sym | 49 | 362 | 7.4× | thunder |
+| 36 | endpoints of R0_0Controller | endpoints | 146 | 362 | 2.5× | thunder |
+| 37 | find the R0_22Controller class | sym | 51 | 366 | 7.2× | thunder |
+| 38 | endpoints of R0_22Controller | endpoints | 152 | 366 | 2.4× | thunder |
+| 39 | find the R0_36Controller class | sym | 51 | 366 | 7.2× | thunder |
+| 40 | endpoints of R0_36Controller | endpoints | 152 | 366 | 2.4× | thunder |
+| 41 | find the R1_13Controller class | sym | 51 | 366 | 7.2× | thunder |
+| 42 | endpoints of R1_13Controller | endpoints | 152 | 366 | 2.4× | thunder |
+| 43 | find the R1_27Controller class | sym | 51 | 366 | 7.2× | thunder |
+| 44 | endpoints of R1_27Controller | endpoints | 152 | 366 | 2.4× | thunder |
+| 45 | find the R1_5Controller class | sym | 49 | 362 | 7.4× | thunder |
+| 46 | endpoints of R1_5Controller | endpoints | 146 | 362 | 2.5× | thunder |
+| 47 | find the R2_18Controller class | sym | 51 | 366 | 7.2× | thunder |
+| 48 | endpoints of R2_18Controller | endpoints | 152 | 366 | 2.4× | thunder |
+| 49 | find the R2_31Controller class | sym | 51 | 366 | 7.2× | thunder |
+| 50 | endpoints of R2_31Controller | endpoints | 152 | 366 | 2.4× | thunder |
+| 51 | who uses R0_0Repository | sym | 18 | 1006 | 55.9× | thunder |
+| 52 | who uses R0_30Repository | sym | 19 | 1019 | 53.6× | thunder |
+| 53 | who uses R1_16Repository | sym | 19 | 1019 | 53.6× | thunder |
+| 54 | who uses R1_38Repository | sym | 19 | 1019 | 53.6× | thunder |
+| 55 | who uses R2_23Repository | sym | 19 | 1019 | 53.6× | thunder |
+| 56 | where is R0_0 defined | sym | 16 | 378 | 23.6× | thunder |
+| 57 | where is R0_22 defined | sym | 17 | 380 | 22.4× | thunder |
+| 58 | where is R0_36 defined | sym | 17 | 380 | 22.4× | thunder |
+| 59 | where is R1_13 defined | sym | 17 | 380 | 22.4× | thunder |
+| 60 | where is R1_27 defined | sym | 17 | 380 | 22.4× | thunder |
+| 61 | where is R1_5 defined | sym | 16 | 378 | 23.6× | thunder |
+| 62 | where is R2_18 defined | sym | 17 | 380 | 22.4× | thunder |
+| 63 | where is R2_31 defined | sym | 17 | 380 | 22.4× | thunder |
+| 64 | who handles dom0 | discovery | 24 | 297525 | 12396.9× | thunder |
+| 65 | business rules for dom0 | ask | 837 | 2460 | 2.9× | thunder |
+| 66 | flow of creating dom0 | ask | 1516 | 2460 | 1.6× | thunder |
+| 67 | how does dom0 work | ask | 1513 | 2460 | 1.6× | thunder |
+| 68 | who handles dom13 | discovery | 25 | 297525 | 11901.0× | thunder |
+| 69 | business rules for dom13 | ask | 854 | 2486 | 2.9× | thunder |
+| 70 | flow of creating dom13 | ask | 1582 | 2486 | 1.6× | thunder |
+| 71 | how does dom13 work | ask | 1579 | 2486 | 1.6× | thunder |
+| 72 | who handles dom18 | discovery | 25 | 297525 | 11901.0× | thunder |
+| 73 | business rules for dom18 | ask | 854 | 2486 | 2.9× | thunder |
+| 74 | flow of creating dom18 | ask | 1582 | 2486 | 1.6× | thunder |
+| 75 | how does dom18 work | ask | 1579 | 2486 | 1.6× | thunder |
+| 76 | who handles dom22 | discovery | 25 | 297525 | 11901.0× | thunder |
+| 77 | business rules for dom22 | ask | 854 | 2486 | 2.9× | thunder |
+| 78 | flow of creating dom22 | ask | 1582 | 2486 | 1.6× | thunder |
+| 79 | how does dom22 work | ask | 1579 | 2486 | 1.6× | thunder |
+| 80 | who handles dom27 | discovery | 25 | 297525 | 11901.0× | thunder |
+| 81 | business rules for dom27 | ask | 854 | 2486 | 2.9× | thunder |
+| 82 | flow of creating dom27 | ask | 1582 | 2486 | 1.6× | thunder |
+| 83 | how does dom27 work | ask | 1579 | 2486 | 1.6× | thunder |
+| 84 | who handles dom31 | discovery | 25 | 297525 | 11901.0× | thunder |
+| 85 | business rules for dom31 | ask | 854 | 2486 | 2.9× | thunder |
+| 86 | flow of creating dom31 | ask | 1582 | 2486 | 1.6× | thunder |
+| 87 | how does dom31 work | ask | 1579 | 2486 | 1.6× | thunder |
+| 88 | who handles dom36 | discovery | 25 | 297525 | 11901.0× | thunder |
+| 89 | business rules for dom36 | ask | 854 | 2486 | 2.9× | thunder |
+| 90 | flow of creating dom36 | ask | 1582 | 2486 | 1.6× | thunder |
+| 91 | how does dom36 work | ask | 1579 | 2486 | 1.6× | thunder |
+| 92 | who handles dom5 | discovery | 24 | 297525 | 12396.9× | thunder |
+| 93 | business rules for dom5 | ask | 837 | 2460 | 2.9× | thunder |
+| 94 | flow of creating dom5 | ask | 1516 | 2460 | 1.6× | thunder |
+| 95 | how does dom5 work | ask | 1513 | 2460 | 1.6× | thunder |
+
 
 ## 8. Shared Tier-3 layer (answer cache · tool-output pruning · DEBUG)
 `node engine/tools/tier3-bench.mjs demo`:

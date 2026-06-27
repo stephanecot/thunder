@@ -83,7 +83,9 @@ EXCLUDES fixed sub-agent overhead (~10.6k/agent) and the SKILL.md size (~4.3k). 
 <token-bench table + the A/B and A/C ratios and inline-answered count>
 
 ## 7. Expanded sweep — ≥50 routed questions
-<sweep summary: wins/total (100%?) · aggregate before vs after · % saved>
+<the FULL per-question markdown table from `sweep-bench` (ALL ≥50 rows: # | Query | route | thunder |
+raw | factor | winner) — paste it verbatim so every tested question is visible — then the summary line
+wins/total (100%?) · aggregate before vs after · % saved>. Do NOT collapse to just the aggregate.
 
 ## 8. Shared Tier-3 layer (answer cache · tool-output pruning · DEBUG)
 <tier3-bench: answer-cache hit % of raw, prune % of raw; DEBUG trace via .thunder.config>

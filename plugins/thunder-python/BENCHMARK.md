@@ -90,8 +90,96 @@ The bigger the app, the wider the gap: the index cost stays **bounded** (the bri
 - `analyze` (architecture / security: mutating routes & attack surface) answers from the index at ~0 model tokens.
 
 ## 7. Expanded sweep — ≥50 routed questions
-`node engine/tools/sweep-bench.mjs pydemo` (≥50 questions over every entity, each routed to its cheapest
-entry point): **thunder wins 85/85 (100%) · 12 481 vs 581 661 tok → 98% saved**.
+`node engine/tools/sweep-bench.mjs pydemo` — ≥50 questions over every entity (classes, services, models/controllers/components, features, contexts), each routed to its cheapest entry point and compared to the raw cost. thunder wins **85/85** (100%) · aggregate **12481 vs 581661 tok → 98% saved**. Full per-question table (every tested question):
+
+| # | Query | route | thunder | raw | factor | winner |
+|---|---|---|---|---|---|---|
+| 1 | architecture overview | brief | 78 | 37228 | 477.3× | thunder |
+| 2 | which frameworks/projects | brief | 78 | 37228 | 477.3× | thunder |
+| 3 | how is the app structured | brief | 78 | 37228 | 477.3× | thunder |
+| 4 | list all routes | routes | 4747 | 13485 | 2.8× | thunder |
+| 5 | mutating routes / attack surface | analyze | 55 | 13485 | 245.2× | thunder |
+| 6 | where is F0NotFound defined | sym | 11 | 432 | 39.3× | thunder |
+| 7 | where is F12NotFound defined | sym | 11 | 436 | 39.6× | thunder |
+| 8 | where is F16NotFound defined | sym | 11 | 436 | 39.6× | thunder |
+| 9 | where is F2NotFound defined | sym | 11 | 432 | 39.3× | thunder |
+| 10 | where is F23NotFound defined | sym | 11 | 436 | 39.6× | thunder |
+| 11 | where is F27NotFound defined | sym | 11 | 436 | 39.6× | thunder |
+| 12 | where is F30NotFound defined | sym | 11 | 436 | 39.6× | thunder |
+| 13 | where is F34NotFound defined | sym | 11 | 436 | 39.6× | thunder |
+| 14 | where is F38NotFound defined | sym | 11 | 436 | 39.6× | thunder |
+| 15 | where is F6NotFound defined | sym | 11 | 432 | 39.3× | thunder |
+| 16 | where is F0Service defined | sym | 10 | 432 | 43.2× | thunder |
+| 17 | what does F0Service do | ask | 62 | 432 | 7.0× | thunder |
+| 18 | where is F13Service defined | sym | 11 | 436 | 39.6× | thunder |
+| 19 | what does F13Service do | ask | 64 | 436 | 6.8× | thunder |
+| 20 | where is F18Service defined | sym | 11 | 436 | 39.6× | thunder |
+| 21 | what does F18Service do | ask | 64 | 436 | 6.8× | thunder |
+| 22 | where is F22Service defined | sym | 11 | 436 | 39.6× | thunder |
+| 23 | what does F22Service do | ask | 64 | 436 | 6.8× | thunder |
+| 24 | where is F27Service defined | sym | 11 | 436 | 39.6× | thunder |
+| 25 | what does F27Service do | ask | 64 | 436 | 6.8× | thunder |
+| 26 | where is F31Service defined | sym | 11 | 436 | 39.6× | thunder |
+| 27 | what does F31Service do | ask | 64 | 436 | 6.8× | thunder |
+| 28 | where is F36Service defined | sym | 11 | 436 | 39.6× | thunder |
+| 29 | what does F36Service do | ask | 64 | 436 | 6.8× | thunder |
+| 30 | where is F5Service defined | sym | 10 | 432 | 43.2× | thunder |
+| 31 | what does F5Service do | ask | 62 | 432 | 7.0× | thunder |
+| 32 | uses of F0Service | sym | 69 | 329 | 4.8× | thunder |
+| 33 | uses of F13Service | sym | 72 | 340 | 4.7× | thunder |
+| 34 | uses of F18Service | sym | 72 | 340 | 4.7× | thunder |
+| 35 | uses of F22Service | sym | 72 | 340 | 4.7× | thunder |
+| 36 | uses of F27Service | sym | 72 | 340 | 4.7× | thunder |
+| 37 | uses of F31Service | sym | 72 | 340 | 4.7× | thunder |
+| 38 | uses of F36Service | sym | 72 | 340 | 4.7× | thunder |
+| 39 | uses of F5Service | sym | 69 | 329 | 4.8× | thunder |
+| 40 | find the F0 model | sym | 8 | 158 | 19.8× | thunder |
+| 41 | find the F14Update model | sym | 11 | 159 | 14.5× | thunder |
+| 42 | find the F20Create model | sym | 11 | 159 | 14.5× | thunder |
+| 43 | find the F27 model | sym | 9 | 159 | 17.7× | thunder |
+| 44 | find the F32Update model | sym | 11 | 159 | 14.5× | thunder |
+| 45 | find the F39Create model | sym | 11 | 159 | 14.5× | thunder |
+| 46 | routes of f0 | routes | 115 | 13485 | 117.3× | thunder |
+| 47 | who handles f0 | discovery | 7 | 37228 | 5318.3× | thunder |
+| 48 | flow of creating f0 | ask | 280 | 919 | 3.3× | thunder |
+| 49 | how does f0 work | ask | 277 | 919 | 3.3× | thunder |
+| 50 | business rules for f0 | ask | 63 | 919 | 14.6× | thunder |
+| 51 | routes of f13 | routes | 120 | 13485 | 112.4× | thunder |
+| 52 | who handles f13 | discovery | 7 | 37228 | 5318.3× | thunder |
+| 53 | flow of creating f13 | ask | 291 | 935 | 3.2× | thunder |
+| 54 | how does f13 work | ask | 288 | 935 | 3.2× | thunder |
+| 55 | business rules for f13 | ask | 65 | 935 | 14.4× | thunder |
+| 56 | routes of f18 | routes | 120 | 13485 | 112.4× | thunder |
+| 57 | who handles f18 | discovery | 7 | 37228 | 5318.3× | thunder |
+| 58 | flow of creating f18 | ask | 291 | 935 | 3.2× | thunder |
+| 59 | how does f18 work | ask | 288 | 935 | 3.2× | thunder |
+| 60 | business rules for f18 | ask | 65 | 935 | 14.4× | thunder |
+| 61 | routes of f22 | routes | 120 | 13485 | 112.4× | thunder |
+| 62 | who handles f22 | discovery | 7 | 37228 | 5318.3× | thunder |
+| 63 | flow of creating f22 | ask | 291 | 935 | 3.2× | thunder |
+| 64 | how does f22 work | ask | 288 | 935 | 3.2× | thunder |
+| 65 | business rules for f22 | ask | 65 | 935 | 14.4× | thunder |
+| 66 | routes of f27 | routes | 120 | 13485 | 112.4× | thunder |
+| 67 | who handles f27 | discovery | 7 | 37228 | 5318.3× | thunder |
+| 68 | flow of creating f27 | ask | 291 | 935 | 3.2× | thunder |
+| 69 | how does f27 work | ask | 288 | 935 | 3.2× | thunder |
+| 70 | business rules for f27 | ask | 65 | 935 | 14.4× | thunder |
+| 71 | routes of f31 | routes | 120 | 13485 | 112.4× | thunder |
+| 72 | who handles f31 | discovery | 7 | 37228 | 5318.3× | thunder |
+| 73 | flow of creating f31 | ask | 291 | 935 | 3.2× | thunder |
+| 74 | how does f31 work | ask | 288 | 935 | 3.2× | thunder |
+| 75 | business rules for f31 | ask | 65 | 935 | 14.4× | thunder |
+| 76 | routes of f36 | routes | 120 | 13485 | 112.4× | thunder |
+| 77 | who handles f36 | discovery | 7 | 37228 | 5318.3× | thunder |
+| 78 | flow of creating f36 | ask | 291 | 935 | 3.2× | thunder |
+| 79 | how does f36 work | ask | 288 | 935 | 3.2× | thunder |
+| 80 | business rules for f36 | ask | 65 | 935 | 14.4× | thunder |
+| 81 | routes of f5 | routes | 115 | 13485 | 117.3× | thunder |
+| 82 | who handles f5 | discovery | 7 | 37228 | 5318.3× | thunder |
+| 83 | flow of creating f5 | ask | 280 | 919 | 3.3× | thunder |
+| 84 | how does f5 work | ask | 277 | 919 | 3.3× | thunder |
+| 85 | business rules for f5 | ask | 63 | 919 | 14.6× | thunder |
+
 
 ## 8. Shared Tier-3 layer (answer cache · tool-output pruning · DEBUG)
 `node engine/tools/tier3-bench.mjs demo`:
