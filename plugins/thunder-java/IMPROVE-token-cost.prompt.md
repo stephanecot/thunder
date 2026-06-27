@@ -1,13 +1,11 @@
 > ## ⏩ ÉTAT — COMMENCE ICI
-> Rounds 1, 2 et **R3.1 (bug parseur endpoints) = faits et validés** (ne pas refaire).
-> Mesures actuelles : thunder inline = **32 % du coût raw** (3× moins cher), **correctness OK**
-> (7 endpoints, les 5 de TagController captés). On est en zone de POLISH.
-> **Travail ACTIF = `# ROUND 4` en bas du fichier** (cartes maigres pour faits ponctuels +
-> fix champ `req` pollué). R3.2 a été abandonné/reformulé — voir R4. Le reste est historique.
+> Rounds 1→4 **faits et validés**. Bench 20 requêtes : thunder économise **73–92 %** des
+> tokens vs raw (4–12× moins cher), correctness OK. **Travail ACTIF = `# ROUND 5` en bas**
+> (routage de skill : 2 types de requêtes prennent un chemin sous-optimal). Le reste = historique.
 >
-> ⚠️ Avant de mesurer : le parse cache doit être purgé pour reparser (`rm cache.ndjson`),
-> sinon les vieux résultats bugués sont réutilisés. Et 2 contextes sont repassés `changed`
-> (tag, exception) → re-inférer via `/thunder-java:thunder-java-reindex`.
+> ⚠️ Rappels d'exploitation : purger `cache.ndjson` avant de re-mesurer (sinon vieux parse
+> réutilisé). Après tout reparse, re-inférer les contextes `changed` via
+> `/thunder-java:thunder-java-reindex` (incrémental, coût minime).
 
 ---
 
@@ -259,3 +257,48 @@ thunder sur chaque question isolée (certains faits ponctuels resteront moins ch
 c'est OK) — c'est l'agrégat sur questions réalistes qui compte. Documente dans `BENCHMARK.md`.
 
 Garde-fous inchangés.
+
+---
+
+# ROUND 5 — routage de skill (après sweep 20 requêtes)
+
+Le sweep sur 20 types de requêtes a confirmé l'éco (73–92 % / 4–12×) MAIS a révélé 2 types
+où l'agent prend un chemin sous-optimal — c'est dans les SKILLs, pas le moteur. À corriger :
+
+## R5.1 — [P1] Router les requêtes par type vers le bon point d'entrée
+Mesuré : `ask` n'est pas le bon outil pour tout. Ajoute une TABLE DE ROUTAGE explicite en tête
+de `skills/thunder-java-grok/SKILL.md` ET `codemap/SKILL.md`, à appliquer AVANT tout `ask` :
+
+| Forme de la question | Point d'entrée (le moins cher mesuré) |
+|---|---|
+| « où est X défini », « qui utilise/appelle X », « trouve la classe/méthode X » | `node thunder.mjs sym def\|refs <Name>` → **~30 tok**, exact |
+| « architecture », « comment c'est structuré », « quels modules », « overview » | `project-brief.yaml` (lecture directe) — **PAS `ask`** (voir R5.2) |
+| « quels endpoints », « liste les routes » | `endpoints.yaml` |
+| « qui gère / où est traité X » (discovery) | grep `capability-map.yaml` |
+| règle métier, flux, valeur de config, « que fait X » | `ask --facts` puis `ask` |
+
+Preuve : « où est TagService » via `sym` = 31 tok vs ~3250 en raw (105×) ; via `ask` ce serait
+plusieurs centaines. La skill doit reconnaître ces formes et NE PAS défaut sur `ask`.
+
+## R5.2 — [P1] `ask` whiffe sur les requêtes conceptuelles → fallback brief
+Mesuré : `ask "modules architecture hexagonal layers"` → **matched: 0** (ces termes ne sont pas
+dans le texte des cartes). Aujourd'hui l'agent se retrouve sans réponse → il sur-lit. Fix au
+choix :
+- (a) simple & robuste : quand `ask` score 0 carte, **renvoyer automatiquement `project-brief.yaml`**
+  (au lieu d'un payload vide) ;
+- (b) mieux : indexer dans le corpus de matching de `ask` la ligne `arch:` + les rôles de modules
+  du brief, pour que les requêtes conceptuelles touchent.
+Fais (a) au minimum.
+
+## R5.3 — NE PAS toucher les 2 cas « perdants »
+Sur le sweep, thunder coûte un peu plus que le raw sur 2 requêtes seulement (unicité = 2 fichiers
+de 60 lignes ; auditing mongo = 1 fichier). Écart ~30–40 tok. Ce sont des faits ponctuels dans
+des fichiers minuscules — laisser tel quel, ne pas sur-ingénierer.
+
+## R5.4 — figer le bench réaliste
+Mets `tools/token-bench.mjs` à jour pour router par type (R5.1) au lieu de tout passer par `ask`,
+et fige le jeu des 20 requêtes. Documente le tableau (économie + facteur) dans `BENCHMARK.md`.
+Cible : ≥ 18/20 requêtes en faveur de thunder, économie agrégée ≥ 70 % (jeux de fichiers
+minimaux) — déjà atteint, ne pas régresser.
+
+Garde-fous inchangés (rétro-compat, hashes/inférence intacts, `node --test` vert).

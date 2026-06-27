@@ -361,3 +361,33 @@ ces questions ponctuelles restent parfois moins chères en raw — c'est l'agré
 Fichiers : `engine/lib/parser.mjs` (detectMember profondeur-conscient + reqBody + garde init),
 `engine/lib/derive.mjs` (`req` = reqBody), `engine/thunder.mjs` (`ask --facts`),
 `engine/test/round3.test.mjs` (asserts `req`). **47 tests verts.**
+
+---
+
+## 12. ROUND 5 — routage de skill (sweep 20 requêtes)
+
+Le coût/requête dépend du **bon point d'entrée**, pas seulement du moteur. `ask` n'est pas optimal pour tout.
+
+**R5.1 — table de routage** ajoutée en tête de `grok`/`codemap` (à appliquer AVANT `ask`) :
+sym (where/who-uses) · project-brief (archi/overview) · endpoints.yaml (endpoints) · grep capability-map
+(discovery) · ask --facts/ask (règle/flux/what-does).
+
+**R5.2 — fallback brief** : `ask` qui matche 0 carte (requête conceptuelle « hexagonal layers ») renvoie
+désormais **automatiquement `project-brief.yaml`** au lieu d'un payload vide. Le corpus de matching de `ask`
+inclut aussi les thèmes/keywords de module.
+
+**R5.4 — sweep des 20 requêtes routées** (`tools/sweep-bench.mjs`, sur `realdemo`) :
+
+| route | exemples | thunder vs raw |
+|---|---|---|
+| sym | where is X / who uses X | 16–49 tok vs 0,3–1,4k → **7–72×** |
+| brief | architecture / modules / overview | 237 tok vs ~297k → **~1255×** |
+| endpoints | list all / endpoints of module | grep ciblé → **1,5–2×** |
+| discovery | who handles X | 24 tok (grep capmap) vs lire le repo → **>10 000×** |
+| ask/--facts | règle / flux / what-does / capabilities | 277–1479 tok vs feature → **1,7–3,6×** |
+
+**Bilan : thunder gagne 20/20, agrégat 37 406 vs 1 861 269 tok → 98 % d'économie** (cibles ≥ 18/20, ≥ 70 %).
+*R5.3 : les 2 faits ponctuels dans des fichiers minuscules (unicité, audit mongo) restent ~30-40 tok plus
+chers en thunder — laissés tels quels, non sur-ingénierés.*
+
+Relance : `node engine/tools/sweep-bench.mjs realdemo`

@@ -21,15 +21,25 @@ function cmdAsk(root, query, topOverride, factsMode = false) {
   if (!query) { console.error('usage: ask "<keywords>" [--top N] [--facts] <root>'); process.exit(1); }
   const { model, functional } = build(root);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const mods = functional.__modules__ || {};
   const scored = [];
   for (const c of model.contexts) {
     const f = functional[c.id] || {};
-    const hay = [c.id, f.name || c.name, f.purpose || '', ...(f.capabilities || []), ...c.types.map((t) => t.n), ...c.endpoints.map((e) => e.path)].join(' ').toLowerCase();
+    const mod = mods[c.module] || {};
+    const hay = [c.id, f.name || c.name, f.purpose || '', ...(f.capabilities || []), mod.theme || '', ...(mod.keywords || []), ...c.types.map((t) => t.n), ...c.endpoints.map((e) => e.path)].join(' ').toLowerCase();
     let score = 0;
     for (const t of terms) if (hay.includes(t)) score++;
     if (score) scored.push({ c, f, score });
   }
   scored.sort((a, b) => b.score - a.score || a.c.id.localeCompare(b.c.id));
+
+  // R5.2: conceptual query that matches no card → fall back to the project brief, not an empty payload
+  if (!scored.length) {
+    const brief = join(root, '.claude', 'cache', 'thunder-java', 'project-brief.yaml');
+    try { process.stdout.write(`# no card matched "${query}" — project brief (overview):\n` + readFileSync(brief, 'utf8')); }
+    catch { console.log(dump({ query, matched: 0, hint: 'no match; read project-brief.yaml' })); }
+    return;
+  }
   // adaptive ranking: a dominant #1 hit (≥2× the #2 score) → top-1; otherwise top-3. `--top N` forces.
   let top = topOverride;
   if (top == null) top = (scored.length <= 1 || (scored[0].score >= 2 * (scored[1]?.score || 0))) ? 1 : 3;

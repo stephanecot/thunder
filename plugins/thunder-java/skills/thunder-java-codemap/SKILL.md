@@ -15,6 +15,15 @@ which business rule.** A sub-agent costs ~**11k tokens of fixed overhead**; answ
 (≈8× cheaper). Not spawning an agent IS the optimization. A sub-agent is justified only to read a real
 `.java` method body — then 1 agent max, seeded with exact `file:line` from the index.
 
+## Route the question FIRST (do this before reaching for `ask`)
+| Question shape | Entry point (cheapest) |
+|---|---|
+| "where is X defined", "who uses/calls X", "find the class/method X" | `thunder.mjs sym def\|refs <Name>` (~30 tok, exact) |
+| "architecture", "how is it structured", "which modules", "overview" | `Read project-brief.yaml` — **not `ask`** |
+| "which endpoints", "list the routes" | `Read endpoints.yaml` |
+| "who handles / where is X processed" (discovery) | `Grep capability-map.yaml` |
+| business rule, flow, config value, "what does X do" | `ask --facts "<kw>"` then `ask` |
+
 ## Workflow (all inline)
 
 1. **Architecture / overview / "what does the app do" / list all endpoints** → read **one** file:

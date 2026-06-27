@@ -22,6 +22,20 @@ you, and then: **1 agent max**, seeded with the exact `file:line` taken from the
 ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${CLAUDE_PROJECT_DIR}"
 ```
 
+## Route the question FIRST (do this before reaching for `ask`)
+`ask` is not the cheapest tool for everything. Pick the entry point by the question's shape:
+
+| Question shape | Entry point (cheapest) |
+|---|---|
+| "where is X defined", "who uses/calls X", "find the class/method X" | `node "$ENG" sym def\|refs <Name> "$ROOT"` (~30 tok, exact) |
+| "architecture", "how is it structured", "which modules", "overview" | `Read project-brief.yaml` (direct) — **not `ask`** |
+| "which endpoints", "list the routes" | `Read endpoints.yaml` |
+| "who handles / where is X processed" (discovery) | `Grep capability-map.yaml` |
+| business rule, flow, config value, "what does X do" | `ask --facts "<kw>"` then `ask` if needed |
+
+Only fall to `ask` for the last row. (If `ask` matches nothing, it now returns the project brief
+automatically.)
+
 ## Procedure (all inline)
 
 1. **Architecture / overview / "what does the app do" / list endpoints** → read **one** file:
