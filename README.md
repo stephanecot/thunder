@@ -12,6 +12,7 @@ can explore, understand and navigate a codebase while spending **2–3 orders of
 | [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | ✅ available |
 | [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | ✅ available |
 | [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | ✅ available |
+| [`thunder-node`](./plugins/thunder-node) | Node.js backend (Express / Fastify / NestJS) | ✅ available |
 
 > Shared architecture: pure Node.js engine (zero dependencies), cross-platform, sharded YAML index,
 > incremental cache, hooks that never spend tokens silently. Each plugin writes its index to its own
@@ -80,7 +81,7 @@ into every plugin by `node shared/sync.mjs` (same precedent as `engine/lib/hash.
 
 ### DEBUG mode — gain tracing
 
-Drop a `.thunder.config` at your project root with `DEBUG=true`. Every operation then appends its token
+Drop a `.thunder/<framework>/.config` at your project root with `DEBUG=true`. Every operation then appends its token
 saving (vs reading raw source) to `.thunder/gains.md` — a running ledger of the value the plugin
 delivered. With `DEBUG=false` or no config file there is **zero overhead** (one memoized config read;
 all gain computation is gated).

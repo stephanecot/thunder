@@ -10,7 +10,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const PLUGINS = ['thunder-java', 'thunder-angular', 'thunder-python'];
+const PLUGINS = ['thunder-java', 'thunder-angular', 'thunder-python', 'thunder-node', 'thunder-mind'];
 // (sourceDir under shared/, destDir under plugins/<p>/)
 const MAP = [
   ['engine/common', 'engine/lib/common'],

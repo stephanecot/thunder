@@ -6,6 +6,7 @@
 **/realdemo/
 **/ngdemo/
 **/pydemo/
+**/nodedemo/
 
 # Maven build output
 **/target/
@@ -13,5 +14,9 @@
 # Node
 node_modules/
 
-# Thunder DEBUG trace + per-project ledger (generated)
-**/.thunder/
+# Thunder DEBUG trace (generated)
+**/.thunder/gains.md
+
+# thunder-mind: decisions/ is the COMMITTED source of truth; the derived index in .thunder/mind/cache/
+# is gitignored by a .gitignore the engine drops there. Ignore the big synthetic scaling corpus only.
+plugins/thunder-mind/minddemo-big/

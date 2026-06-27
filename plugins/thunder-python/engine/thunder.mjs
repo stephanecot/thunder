@@ -8,6 +8,7 @@ import { appendDirty, drainDirty, readCache, cacheDir, readManifest } from './li
 import * as ledger from './lib/common/ledger.mjs';
 import { prune } from './lib/common/prune.mjs';
 import * as debug from './lib/common/debug.mjs';
+const fwOf = (root) => cacheDir(root).split(/[\\/]/).pop().replace(/^thunder-/, '');
 import { buildEvidence, staleContexts, setFunctional, staleModules, setModuleFunctional, moduleContextHash } from './lib/functional.mjs';
 
 function cmdBuild(root, force) {
@@ -129,9 +130,9 @@ function cmdAsk(root, query, topOverride, factsMode = false) {
       srcHashOf: (id) => byId.get(id) ?? null, engineHash: readManifest(root).engineHash,
     });
     if (hit && hit.fresh) {
-      if (debug.debugEnabled(root)) {
+      if (debug.debugEnabled(root, fwOf(root))) {
         const depFiles = (hit.entry.deps || []).flatMap((d) => model.contexts.find((c) => c.id === d.ctx)?.files || []);
-        debug.trace(root, { plugin: cacheDir(root).split(/[\\/]/).pop(), op: 'ask:cache-hit', detail: query, thunder: debug.tok(Buffer.byteLength(hit.entry.a)), baseline: debug.rawTokens(root, depFiles) });
+        debug.trace(root, fwOf(root), { plugin: cacheDir(root).split(/[\\/]/).pop(), op: 'ask:cache-hit', detail: query, thunder: debug.tok(Buffer.byteLength(hit.entry.a)), baseline: debug.rawTokens(root, depFiles) });
       }
       process.stdout.write(`# tier-3 cached answer (fresh, score ${hit.score.toFixed(2)})\n${hit.entry.a}\n`); return;
     }
@@ -172,7 +173,7 @@ function cmdAsk(root, query, topOverride, factsMode = false) {
   const shown = new Set(sel.map((s) => s.c.id));
   const routes = model.routes.filter((r) => shown.has(r.ctx)).map((r) => ({ verb: r.verb, path: r.path, fn: r.fn }));
   const payload = dump({ query, matched: scored.length, shown: cards.length, cards, routes });
-  if (debug.debugEnabled(root)) debug.trace(root, { plugin: cacheDir(root).split(/[\\/]/).pop(), op: 'ask:index', detail: query, thunder: debug.tok(Buffer.byteLength(payload)), baseline: debug.rawTokens(root, sel.flatMap((s) => s.c.files)) });
+  if (debug.debugEnabled(root, fwOf(root))) debug.trace(root, fwOf(root), { plugin: cacheDir(root).split(/[\\/]/).pop(), op: 'ask:index', detail: query, thunder: debug.tok(Buffer.byteLength(payload)), baseline: debug.rawTokens(root, sel.flatMap((s) => s.c.files)) });
   console.log(payload);
 }
 
@@ -204,7 +205,7 @@ async function cmdPrune(file) {
   const text = file ? readFileSync(file, 'utf8') : await readStdin();
   const r = prune(text);
   const root = process.cwd();
-  if (debug.debugEnabled(root)) debug.trace(root, { plugin: 'thunder', op: 'prune', detail: file || 'stdin', thunder: debug.tok(Buffer.byteLength(r.out)), baseline: debug.tok(Buffer.byteLength(text)) });
+  if (debug.debugEnabled(root, fwOf(root))) debug.trace(root, fwOf(root), { plugin: 'thunder', op: 'prune', detail: file || 'stdin', thunder: debug.tok(Buffer.byteLength(r.out)), baseline: debug.tok(Buffer.byteLength(text)) });
   process.stdout.write(r.out + (r.out.endsWith('\n') ? '' : '\n'));
   if (r.elided) process.stderr.write(`# pruned ${r.total}→${r.kept} lines (${r.elided} elided)\n`);
 }

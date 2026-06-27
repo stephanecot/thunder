@@ -5,7 +5,7 @@ import assert from 'node:assert';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { prune } from '../lib/common/prune.mjs';
 import { normalize, lookup, writeAnswer, gc, readLedger } from '../lib/common/ledger.mjs';
 import { debugEnabled, trace, config } from '../lib/common/debug.mjs';
@@ -87,23 +87,25 @@ test('ledger: gc drops entries with a stale engine hash', () => {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('debug: OFF by default (no .thunder.config) → trace is a no-op, no file written', () => {
+test('debug: OFF by default (no .thunder/<fw>/.config) → trace is a no-op, no file written', () => {
   const dir = mkdtempSync(join(tmpdir(), 'thunder-dbg-off-'));
   try {
-    assert.equal(debugEnabled(dir), false);
-    trace(dir, { plugin: 'thunder-x', op: 'ask:index', detail: 'q', thunder: 10, baseline: 100 });
+    assert.equal(debugEnabled(dir, 'node'), false);
+    trace(dir, 'node', { plugin: 'thunder-node', op: 'ask:index', detail: 'q', thunder: 10, baseline: 100 });
     assert.equal(existsSync(join(dir, '.thunder', 'gains.md')), false, 'nothing written when DEBUG off');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('debug: DEBUG=true → trace appends a gains row with computed saving', () => {
+test('debug: per-framework — DEBUG=true for one fw does not enable another', () => {
   const dir = mkdtempSync(join(tmpdir(), 'thunder-dbg-on-'));
   try {
-    writeFileSync(join(dir, '.thunder.config'), '# config\nDEBUG=true\n');
-    assert.equal(debugEnabled(dir), true);
-    trace(dir, { plugin: 'thunder-x', op: 'ask:index', detail: 'how does chat work', thunder: 50, baseline: 350, nowIso: '2026-01-01T00:00:00Z' });
+    mkdirSync(join(dir, '.thunder', 'node'), { recursive: true });
+    writeFileSync(join(dir, '.thunder', 'node', '.config'), '# config\nDEBUG=true\n');
+    assert.equal(debugEnabled(dir, 'node'), true, 'node enabled');
+    assert.equal(debugEnabled(dir, 'angular'), false, 'angular NOT enabled (no config)');
+    trace(dir, 'node', { plugin: 'thunder-node', op: 'ask:index', detail: 'how does users work', thunder: 50, baseline: 350, nowIso: '2026-01-01T00:00:00Z' });
     const md = readFileSync(join(dir, '.thunder', 'gains.md'), 'utf8');
     assert.match(md, /\| time \(UTC\) \| plugin \| op \|/, 'header present');
-    assert.match(md, /thunder-x \| ask:index .* \| 50 \| 350 \| 300 \| 86% \|/, 'row with saved=300, 86%');
+    assert.match(md, /thunder-node \| ask:index .* \| 50 \| 350 \| 300 \| 86% \|/, 'row with saved=300, 86%');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

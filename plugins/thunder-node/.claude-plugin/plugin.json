@@ -1,0 +1,9 @@
+{
+  "name": "thunder-node",
+  "displayName": "Thunder Node ⚡",
+  "version": "0.0.1",
+  "description": "Token-minimal comprehension, exploration and navigation of Node.js backend codebases (Express / Fastify / NestJS). Pure-Node, zero-dependency engine that builds a hierarchical YAML index (technical: controllers, services, HTTP endpoints, DI graph, framework-aware + inferred functional layer), kept fresh by hooks.",
+  "author": { "name": "Stéphane Cottin", "email": "stephanecot@gmail.com" },
+  "keywords": ["nodejs", "express", "fastify", "nestjs", "typescript", "javascript", "codebase", "index", "token-efficient"],
+  "license": "MIT"
+}

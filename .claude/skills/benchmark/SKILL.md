@@ -21,6 +21,7 @@ SKILL.md size (~4.3k) — not part of a per-answer data cost. State this in the 
 | thunder-java | `realdemo` | `bigdemo` | `gen-realdemo.mjs realdemo && populate-realdemo.mjs realdemo` |
 | thunder-angular | `ngdemo` | `ngdemo` | `gen-ngdemo.mjs ngdemo 40` |
 | thunder-python | `pydemo` | `pydemo` | `gen-pydemo.mjs pydemo` |
+| thunder-node | `nodedemo` | `nodedemo` | `gen-nodedemo.mjs nodedemo 40` |
 
 `<cache>` = `<bed>/.claude/cache/<plugin>`. Extra bench: java/python `analyze.mjs <bed>`, angular `data-bench.mjs demo`.
 
@@ -69,7 +70,7 @@ numbers differ):
 tested question is visible. Do NOT collapse to just the aggregate.>
 
 ## 8. Shared Tier-3 layer (answer cache · tool-output pruning · DEBUG)
-<tier3-bench: answer-cache hit % of raw, prune % of raw; DEBUG via .thunder.config>
+<tier3-bench: answer-cache hit % of raw, prune % of raw; DEBUG via .thunder/<framework>/.config>
 
 ## 9. Verdict
 <table by query type + one conclusion paragraph>

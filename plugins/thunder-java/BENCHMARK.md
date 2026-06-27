@@ -202,7 +202,7 @@ The bigger the repo, the wider the gap: the index cost stays **bounded** (top ~7
 `node engine/tools/tier3-bench.mjs demo`:
 - **answer-cache hit**: **3%** of raw (relay a hash-fresh prior answer; STALE on any source/engine change).
 - **tool-output prune**: **1%** of raw on a 5 000-line log, error lines always preserved.
-- **DEBUG mode**: `.thunder.config` with `DEBUG=true` → every op's data-token saving appended to `.thunder/gains.md`; off → zero overhead.
+- **DEBUG mode**: `.thunder/<framework>/.config` with `DEBUG=true` → every op's data-token saving appended to `.thunder/gains.md`; off → zero overhead.
 
 ## 9. Verdict
 | Query type | thunder benefit |
