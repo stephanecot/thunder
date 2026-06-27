@@ -50,3 +50,23 @@ node engine/tools/populate-pydemo.mjs pydemo
 node engine/tools/token-bench.mjs pydemo   # A/B/C
 node engine/tools/sweep-bench.mjs pydemo   # 20 routed queries
 ```
+
+## SHARED Tier-3 layer — answer cache · tool-output pruning · DEBUG trace
+
+Language-agnostic mechanics added on top of the index (byte-identical across all thunder-* plugins,
+single source under `shared/`, synced by `shared/sync.mjs` — same precedent as `hash.mjs`/`yaml.mjs`).
+Orthogonal axes (output / tool-results), so they compound with the index. `node engine/tools/tier3-bench.mjs demo`:
+
+| Mechanic | thunder/baseline | correctness |
+|---|---:|---|
+| answer-cache hit (relay a prior, hash-fresh answer) | **9%** of raw | fresh hit on paraphrase; STALE on any `src_hash`/engine change |
+| tool-output prune (verbose log) | **1%** of raw | error/diagnostic lines always preserved |
+
+- **Answer cache (Tier-3):** `ask` consults `qa-ledger.ndjson` first; a fresh prior answer is relayed at
+  ~0 retrieval/reasoning. Freshness gated by the index's existing `src_hash` + `engineHash` → never stale.
+  Commands: `cache-answer` (write), `cache-gc`, `cache-stats`. Falls through safely on any miss.
+- **Tool-output pruning:** `thunder prune` (stdin/file) keeps head+tail+diagnostics, elides the middle.
+- **DEBUG mode:** a `.thunder.config` with `DEBUG=true` appends every operation's token saving to
+  `.thunder/gains.md`. `DEBUG=false`/absent → zero overhead (one memoized config read; all gain math gated).
+- Tests: `engine/test/common.test.mjs` (12 cases: prune, ledger freshness/staleness/scope/gc, debug on/off).
+- No regression: existing tests + token/sweep benches unchanged.

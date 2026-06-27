@@ -10,21 +10,21 @@
       "name": "thunder-java",
       "source": "./plugins/thunder-java",
       "description": "Token-minimal comprehension, exploration and navigation of Java/Spring Boot codebases (hierarchical YAML index: technical + inferred functional layer).",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "keywords": ["java", "spring-boot", "codebase", "index", "token-efficient"]
     },
     {
       "name": "thunder-angular",
       "source": "./plugins/thunder-angular",
       "description": "Token-minimal comprehension, exploration and navigation of Angular/TypeScript codebases (components, services, routes, NgModules, DI graph + inferred functional layer).",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "keywords": ["angular", "typescript", "codebase", "index", "token-efficient"]
     },
     {
       "name": "thunder-python",
       "source": "./plugins/thunder-python",
       "description": "Token-minimal comprehension, exploration and navigation of Python codebases — FastAPI / Flask / Django / plain (routes, models, classes, DI, framework-aware + inferred functional layer).",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "keywords": ["python", "fastapi", "flask", "django", "codebase", "index", "token-efficient"]
     }
   ]

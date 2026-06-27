@@ -4,7 +4,10 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from './lib/build.mjs';
 import { dump } from './lib/yaml.mjs';
-import { appendDirty, drainDirty, readCache } from './lib/cache.mjs';
+import { appendDirty, drainDirty, readCache, cacheDir, readManifest } from './lib/cache.mjs';
+import * as ledger from './lib/common/ledger.mjs';
+import { prune } from './lib/common/prune.mjs';
+import * as debug from './lib/common/debug.mjs';
 import {
   buildEvidence, staleContexts, setFunctional,
   staleModules, setModuleFunctional, moduleContextHash,
@@ -111,6 +114,21 @@ async function cmdSetModuleFunctional(root, name) {
 function cmdAsk(root, query, topOverride, factsMode = false) {
   if (!query) { console.error('usage: ask "<keywords>" [--top N] [--facts] <root>'); process.exit(1); }
   const { model, functional } = build(root);
+  // Tier-3: hash-validated answer cache. A fresh prior answer is relayed with ~0 retrieval/reasoning;
+  // any source change flips a dep's src_hash → STALE → falls through to normal retrieval below.
+  if (!factsMode) {
+    const byId = new Map(model.contexts.map((c) => [c.id, c.src_hash]));
+    const hit = ledger.lookup(cacheDir(root), query, {
+      srcHashOf: (id) => byId.get(id) ?? null, engineHash: readManifest(root).engineHash,
+    });
+    if (hit && hit.fresh) {
+      if (debug.debugEnabled(root)) {
+        const depFiles = (hit.entry.deps || []).flatMap((d) => model.contexts.find((c) => c.id === d.ctx)?.files || []);
+        debug.trace(root, { plugin: cacheDir(root).split(/[\\/]/).pop(), op: 'ask:cache-hit', detail: query, thunder: debug.tok(Buffer.byteLength(hit.entry.a)), baseline: debug.rawTokens(root, depFiles) });
+      }
+      process.stdout.write(`# tier-3 cached answer (fresh, score ${hit.score.toFixed(2)})\n${hit.entry.a}\n`); return;
+    }
+  }
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const mods = functional.__modules__ || {};
   const scored = [];
@@ -158,7 +176,9 @@ function cmdAsk(root, query, topOverride, factsMode = false) {
   }));
   const shownIds = new Set(sel.map((s) => s.c.id));
   const routes = model.routes.filter((r) => shownIds.has(r.ctx)).map((r) => ({ path: r.path, target: r.target, kind: r.kind }));
-  console.log(dump({ query, matched: scored.length, shown: cards.length, cards, routes }));
+  const payload = dump({ query, matched: scored.length, shown: cards.length, cards, routes });
+  if (debug.debugEnabled(root)) debug.trace(root, { plugin: cacheDir(root).split(/[\\/]/).pop(), op: 'ask:index', detail: query, thunder: debug.tok(Buffer.byteLength(payload)), baseline: debug.rawTokens(root, sel.flatMap((s) => s.c.files)) });
+  console.log(payload);
 }
 
 /** `ask --detail <id>`: print the detail shard directly. */
@@ -195,6 +215,32 @@ function cmdSym(root, sub, name) {
   else hits.forEach((h) => console.log(h));
 }
 
+/** Persist an index-derived answer into the Tier-3 ledger. Answer text is read from stdin. */
+async function cmdCacheAnswer(root, q, ctxCsv, scope) {
+  if (!q || !ctxCsv) { console.error('usage: cache-answer --q "<question>" --ctx <id,id> [--scope <s>] <root>  (answer on stdin)'); process.exit(1); }
+  const { model } = build(root);
+  const byId = new Map(model.contexts.map((c) => [c.id, c.src_hash]));
+  const deps = ctxCsv.split(',').map((s) => s.trim()).filter(Boolean)
+    .map((id) => ({ ctx: id, h: byId.get(id) ?? null }));
+  const missing = deps.filter((d) => d.h == null).map((d) => d.ctx);
+  if (missing.length) { console.error(`unknown context(s): ${missing.join(', ')}`); process.exit(1); }
+  const answer = (await readStdin()).trim();
+  if (!answer) { console.error('empty answer on stdin — nothing cached'); process.exit(1); }
+  ledger.writeAnswer(cacheDir(root), { q, answer, deps, scope: scope || null, engine: readManifest(root).engineHash });
+  console.log(`cached: "${q}" (${deps.length} dep(s))`);
+}
+function cmdCacheGc(root) { const r = ledger.gc(cacheDir(root), { engineHash: readManifest(root).engineHash }); console.log(`ledger gc: kept ${r.kept}, dropped ${r.dropped}`); }
+function cmdCacheStats(root) { console.log(dump({ ledger: ledger.stats(cacheDir(root)) })); }
+/** Prune a verbose blob (stdin or file) — keep head/tail/diagnostics, elide the middle. */
+async function cmdPrune(file) {
+  const text = file ? readFileSync(file, 'utf8') : await readStdin();
+  const r = prune(text);
+  const root = process.cwd();
+  if (debug.debugEnabled(root)) debug.trace(root, { plugin: 'thunder', op: 'prune', detail: file || 'stdin', thunder: debug.tok(Buffer.byteLength(r.out)), baseline: debug.tok(Buffer.byteLength(text)) });
+  process.stdout.write(r.out + (r.out.endsWith('\n') ? '' : '\n'));
+  if (r.elided) process.stderr.write(`# pruned ${r.total}→${r.kept} lines (${r.elided} elided)\n`);
+}
+
 async function selftest() {
   const assert = (await import('node:assert')).default;
   const demo = join(dirname(fileURLToPath(import.meta.url)), '..', 'demo');
@@ -229,11 +275,12 @@ async function selftest() {
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--')));
-const VALUE_FLAGS = new Set(['--root', '--top']);
+const VALUE_FLAGS = new Set(['--root', '--top', '--q', '--ctx', '--scope']);
 const pos = argv.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.has(argv[i - 1]));
 const cmd = pos[0] || 'build';
 const rootArg = (() => { const i = argv.indexOf('--root'); return i >= 0 ? argv[i + 1] : null; })();
 const R = (p) => resolve(rootArg || p || process.cwd());
+const flagVal = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
 
 if (flags.has('--selftest')) {
   selftest().catch((e) => { console.error('❌ selftest FAILED:', e.message); process.exit(1); });
@@ -256,6 +303,10 @@ if (flags.has('--selftest')) {
     case 'module-evidence': cmdModuleEvidence(R(pos[2]), pos[1]); break;
     case 'set-module-functional': cmdSetModuleFunctional(R(pos[2]), pos[1]); break;
     case 'sym': cmdSym(R(pos[3]), pos[1], pos[2]); break;
+    case 'cache-answer': cmdCacheAnswer(R(pos[1]), flagVal('--q'), flagVal('--ctx'), flagVal('--scope')); break;
+    case 'cache-gc': cmdCacheGc(R(pos[1])); break;
+    case 'cache-stats': cmdCacheStats(R(pos[1])); break;
+    case 'prune': cmdPrune(pos[1]); break;
     default: console.error(`unknown command: ${cmd}`); process.exit(1);
   }
 }

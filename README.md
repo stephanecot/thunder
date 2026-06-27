@@ -65,3 +65,22 @@ dist/                               # generated — Claude + Copilot, installabl
 Each stack has its own structural conventions (Spring annotations & beans, Angular modules &
 components, …). A dedicated parser + index schema per language stays exact and lean, while the engine,
 caching, hooks and functional-inference machinery are shared patterns reused across plugins.
+
+## Shared Tier-3 layer (cross-framework)
+
+Language-agnostic token mechanics live once under `shared/engine/common/` and are synced byte-identical
+into every plugin by `node shared/sync.mjs` (same precedent as `engine/lib/hash.mjs`/`yaml.mjs`):
+
+- **Answer cache** — `ask` first consults `qa-ledger.ndjson`; a fresh prior answer is relayed at ~0
+  retrieval/reasoning. Freshness is gated by the index's existing per-context `src_hash` + the engine
+  hash, so a cached answer is **never stale**. Persist with
+  `thunder cache-answer --q … --ctx … -- <answer on stdin>`; maintain with `cache-gc` / `cache-stats`.
+- **Tool-output pruning** — `thunder prune` (stdin or file) keeps head + tail + every diagnostic line
+  and elides the middle, halving the cost of verbose test/build logs.
+
+### DEBUG mode — gain tracing
+
+Drop a `.thunder.config` at your project root with `DEBUG=true`. Every operation then appends its token
+saving (vs reading raw source) to `.thunder/gains.md` — a running ledger of the value the plugin
+delivered. With `DEBUG=false` or no config file there is **zero overhead** (one memoized config read;
+all gain computation is gated).

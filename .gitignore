@@ -12,3 +12,6 @@
 
 # Node
 node_modules/
+
+# Thunder DEBUG trace + per-project ledger (generated)
+**/.thunder/
