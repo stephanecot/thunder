@@ -1,9 +1,9 @@
 # Thunder ⚡ — marketplace
 
-A Claude Code marketplace of **token-minimal codebase-comprehension plugins**, **one plugin per
-language / stack**. Each plugin builds a hierarchical YAML index (exact technical layer + inferred
-functional layer) and exposes it through skills, an agent and hooks — so you can explore, understand and
-navigate a codebase while spending **2–3 orders of magnitude fewer tokens**.
+A marketplace of **token-minimal codebase-comprehension plugins**, **one plugin per language / stack**,
+for **both Claude Code and GitHub Copilot CLI**. Each plugin builds a hierarchical YAML index (exact
+technical layer + inferred functional layer) and exposes it through skills, an agent and hooks — so you
+can explore, understand and navigate a codebase while spending **2–3 orders of magnitude fewer tokens**.
 
 ## Plugins
 
@@ -19,24 +19,45 @@ navigate a codebase while spending **2–3 orders of magnitude fewer tokens**.
 
 ## Installation
 
-```bash
-# add the marketplace (from GitHub)
-/plugin marketplace add stephanecot/thunder
+### Claude Code
 
-# install the plugin you want
-/plugin install thunder-java@thunder
+```bash
+/plugin marketplace add stephanecot/thunder   # add the marketplace (from GitHub)
+/plugin install thunder-java@thunder          # install the plugin you want
+```
+
+### GitHub Copilot CLI
+
+The Copilot variants are **generated** from the same source (see [Dual-host build](#dual-host-build)):
+
+```bash
+node build.mjs                                 # build dist/copilot/ (+ dist/claude/)
+copilot plugin marketplace add .               # reads .github/plugin/marketplace.json (repo root)
+copilot plugin install thunder-java            # idem thunder-angular / thunder-python
 ```
 
 See each plugin's README for details (e.g. [`plugins/thunder-java/README.md`](./plugins/thunder-java/README.md)).
 
+## Dual-host build
+
+`plugins/<name>` is the **single source of truth** (Claude-authored). `build.mjs` derives the Copilot
+variant — skills, agents and hooks are authored **once**; the `engine/` is **symlinked** into every
+output (one real copy). Host differences are purely mechanical (`${CLAUDE_PLUGIN_ROOT}`→`${PLUGIN_ROOT}`,
+`hooks/hooks.json`→root `hooks.json`, `*.md`→`*.agent.md`, manifest location, …). See
+[`dist/README.md`](./dist/README.md).
+
 ## Structure
 
 ```
-.claude-plugin/marketplace.json   # marketplace manifest
+.claude-plugin/marketplace.json     # Claude marketplace  → ./plugins/<name>
+.github/plugin/marketplace.json     # Copilot marketplace → ./dist/copilot/<name>   (generated)
+build.mjs                           # plugins/ (source) → dist/{claude,copilot}/
 plugins/
-  thunder-java/                   # Java plugin (engine, skills, agents, hooks, demo, tests)
+  thunder-java/                     # source plugin (engine, skills, agents, hooks, demo, tests)
     .claude-plugin/plugin.json
-  thunder-angular/                # (coming soon)
+  thunder-angular/  thunder-python/
+dist/                               # generated — Claude + Copilot, installable
+  claude/<name>/    copilot/<name>/
 ```
 
 ## Why one plugin per language

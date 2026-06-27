@@ -1,0 +1,16 @@
+{
+  "name": "thunder",
+  "version": "0.1.0",
+  "description": "Token-minimal codebase comprehension index for Java/Spring Boot (Node, zero deps)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "selftest": "node engine/thunder.mjs --selftest",
+    "build:demo": "node engine/thunder.mjs build demo",
+    "gen:bigdemo": "node engine/tools/gen-bigdemo.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

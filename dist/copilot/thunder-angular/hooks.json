@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "command": "node \"${PLUGIN_ROOT}/engine/thunder.mjs\" ensure \"${PWD}\"",
+        "timeoutSec": 60
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "command": "node \"${PLUGIN_ROOT}/hooks/hook.mjs\"",
+        "timeoutSec": 15
+      }
+    ]
+  }
+}
