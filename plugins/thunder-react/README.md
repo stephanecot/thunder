@@ -1,10 +1,23 @@
 # thunder-react ⚡
 
-Claude Code plugin for **token-minimal comprehension / exploration / navigation** of an Angular /
-TypeScript codebase. Pure **Node.js indexing engine, zero dependencies**, cross-platform. Shares the
+## ⚠️ First: index the project (required — manual, one-time)
+
+The skills answer **only** from a pre-built index. **Before your first query, run the indexer once:**
+
+```
+/thunder-react:thunder-react-reindex
+```
+
+The **technical** layer builds free & instantly; the **functional/business** layer is inferred once by
+the cartographer agent (budgeted & confirmed). `codemap` / `grok` / `sym` won't return anything useful
+until the index exists. After this first run a hook keeps it fresh on edits automatically; re-run
+`reindex` after a large refactor or to refresh the functional layer.
+
+Claude Code plugin for **token-minimal comprehension / exploration / navigation** of a React.js codebase
+(`.tsx/.jsx/.ts/.js`). Pure **Node.js indexing engine, zero dependencies**, cross-platform. Shares the
 thunder engine architecture (WALK → LEX → PARSE → DERIVE → EMIT, NDJSON cache, sharded YAML index,
-inferred functional layer, hooks) with a **TypeScript lexer**, an **Angular-decorator parser**, and
-**Angular-semantic derivation**.
+inferred functional layer, hooks) with a **TS/JSX lexer**, a **component + hook + React Router parser**, and
+**React-semantic derivation**.
 
 > Principle: *the cheapest token is the one you never read.* Read a compact, hierarchical YAML index —
 > never the `.ts` files — so token cost is **independent of repo size**.

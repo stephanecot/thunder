@@ -71,6 +71,11 @@ silently · the shared **Tier-3** layer (answer cache · pruning · per-framewor
 /plugin install thunder-java@thunder          # install the plugin you want
 ```
 
+> ⚠️ **After installing a framework plugin, index the project once before querying** — it's a manual,
+> one-time step: run `/<plugin>:<plugin>-reindex` (e.g. `/thunder-java:thunder-java-reindex`). The skills
+> answer only from that index. A hook then keeps it fresh on edits. (`thunder-mind` builds its index on
+> first use via its own hook.)
+
 ### GitHub Copilot CLI
 
 The Copilot variants are **generated** from the same source (see [Dual-host build](#dual-host-build)):

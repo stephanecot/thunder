@@ -1,5 +1,18 @@
 # thunder-angular ⚡
 
+## ⚠️ First: index the project (required — manual, one-time)
+
+The skills answer **only** from a pre-built index. **Before your first query, run the indexer once:**
+
+```
+/thunder-angular:thunder-angular-reindex
+```
+
+The **technical** layer builds free & instantly; the **functional/business** layer is inferred once by
+the cartographer agent (budgeted & confirmed). `codemap` / `grok` / `sym` won't return anything useful
+until the index exists. After this first run a hook keeps it fresh on edits automatically; re-run
+`reindex` after a large refactor or to refresh the functional layer.
+
 Claude Code plugin for **token-minimal comprehension / exploration / navigation** of an Angular /
 TypeScript codebase. Pure **Node.js indexing engine, zero dependencies**, cross-platform. Shares the
 thunder engine architecture (WALK → LEX → PARSE → DERIVE → EMIT, NDJSON cache, sharded YAML index,
