@@ -19,22 +19,6 @@ const MAP = [
 ];
 const check = process.argv.includes('--check');
 
-// Templated skills: one shared/skills/<name>/SKILL.md.tpl → plugins/<p>/skills/thunder-<lang>-<name>/SKILL.md
-// with __KEY__ tokens substituted per plugin (skills can't be byte-identical: name/lang/demos differ).
-const SKILL_TEMPLATES = ['benchmark'];
-const SUBST = {
-  'thunder-java': { LANG: 'java', REALDEMO: 'realdemo', BIGDEMO: 'bigdemo',
-    GENCMD: 'node engine/tools/gen-realdemo.mjs realdemo && node engine/tools/populate-realdemo.mjs realdemo',
-    EXTRABENCH: 'node engine/tools/analyze.mjs realdemo            # architecture / security insights' },
-  'thunder-angular': { LANG: 'angular', REALDEMO: 'ngdemo', BIGDEMO: 'ngdemo',
-    GENCMD: 'node engine/tools/gen-ngdemo.mjs ngdemo 40',
-    EXTRABENCH: 'node engine/tools/data-bench.mjs demo                 # 5 frozen questions × 3 tiers' },
-  'thunder-python': { LANG: 'python', REALDEMO: 'pydemo', BIGDEMO: 'pydemo',
-    GENCMD: 'node engine/tools/gen-pydemo.mjs pydemo',
-    EXTRABENCH: 'node engine/tools/analyze.mjs pydemo              # architecture / security insights' },
-};
-const fillTemplate = (tpl, p) => tpl.replace(/__([A-Z]+)__/g, (m, k) => (k in SUBST[p] ? SUBST[p][k] : m));
-
 let copied = 0, stale = 0;
 for (const [srcRel, dstRel] of MAP) {
   const srcDir = join(ROOT, 'shared', srcRel);
@@ -51,20 +35,6 @@ for (const [srcRel, dstRel] of MAP) {
       console.log(`synced → plugins/${p}/${dstRel}/${f}`);
       copied++;
     }
-  }
-}
-for (const name of SKILL_TEMPLATES) {
-  const tpl = readFileSync(join(ROOT, 'shared', 'skills', name, 'SKILL.md.tpl'), 'utf8');
-  for (const p of PLUGINS) {
-    const out = fillTemplate(tpl, p);
-    const dst = join(ROOT, 'plugins', p, 'skills', `thunder-${SUBST[p].LANG}-${name}`, 'SKILL.md');
-    const cur = existsSync(dst) ? readFileSync(dst, 'utf8') : null;
-    if (cur === out) continue;
-    if (check) { console.error(`stale: ${dst.replace(ROOT + '/', '')}`); stale++; continue; }
-    mkdirSync(dirname(dst), { recursive: true });
-    writeFileSync(dst, out);
-    console.log(`synced → plugins/${p}/skills/thunder-${SUBST[p].LANG}-${name}/SKILL.md`);
-    copied++;
   }
 }
 if (check) { if (stale) { console.error(`${stale} file(s) out of date — run: node shared/sync.mjs`); process.exit(1); } console.log('shared layer in sync.'); }

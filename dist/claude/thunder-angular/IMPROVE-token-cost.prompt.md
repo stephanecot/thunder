@@ -1,4 +1,10 @@
-> ## 🟢 ÉTAT — ROUND 1 FAIT ET VALIDÉ · 🟡 ROUND 2 À FAIRE
+> ## 🟢 ÉTAT — ROUND 1 FAIT ET VALIDÉ · 🟢 ROUND 2 FAIT ET VALIDÉ
+> Round 2 appliqué (branche `tier3-shared-layer`) : R2.1 gardes en appel-fabrique
+> (`scopeGuard('aura:admin')`) captées via split profondeur-conscient (args préservés, multi-arg) ;
+> R2.2 verbe HTTP réel par appel + nom de champ HttpClient suivi (`private api = inject(HttpClient)`)
+> + URLs de gabarit normalisées (`${environment.apiUrl}/documents/${id}` → `{apiUrl}/documents/{id}`,
+> plus de `null`/tout-`GET`). Tests ajoutés (feature.test : garde-fabrique multi-arg + verbe/URL non-http).
+> Sweep étendu à ≥50 questions → angular **84/84 (100%), 98% saved**. Round 1+2 = historique ci-dessous.
 > Round 1 appliqué et re-mesuré sur `aura/frontend` (12 contextes après granularité, reindex
 > fonctionnel des 10 contextes touchés). Résultats :
 > - **#1 granularité** ✅ : `features` éclaté en 10 contextes ; **Q3 chat passe de +6 % à −41 %

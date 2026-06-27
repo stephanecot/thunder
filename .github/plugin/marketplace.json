@@ -13,7 +13,7 @@
       "name": "thunder-java",
       "source": "./dist/copilot/thunder-java",
       "description": "Token-minimal comprehension, exploration and navigation of Java/Spring Boot codebases (hierarchical YAML index: technical + inferred functional layer).",
-      "version": "0.1.6",
+      "version": "0.1.8",
       "keywords": [
         "java",
         "spring-boot",
@@ -26,7 +26,7 @@
       "name": "thunder-angular",
       "source": "./dist/copilot/thunder-angular",
       "description": "Token-minimal comprehension, exploration and navigation of Angular/TypeScript codebases (components, services, routes, NgModules, DI graph + inferred functional layer).",
-      "version": "0.1.6",
+      "version": "0.1.9",
       "keywords": [
         "angular",
         "typescript",
@@ -39,7 +39,7 @@
       "name": "thunder-python",
       "source": "./dist/copilot/thunder-python",
       "description": "Token-minimal comprehension, exploration and navigation of Python codebases — FastAPI / Flask / Django / plain (routes, models, classes, DI, framework-aware + inferred functional layer).",
-      "version": "0.1.1",
+      "version": "0.1.3",
       "keywords": [
         "python",
         "fastapi",
