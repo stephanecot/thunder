@@ -7,6 +7,7 @@
 **/ngdemo/
 **/pydemo/
 **/nodedemo/
+**/reactdemo/
 
 # Maven build output
 **/target/
@@ -14,9 +15,10 @@
 # Node
 node_modules/
 
-# Thunder DEBUG trace (generated)
+# Thunder DEBUG trace + per-framework debug config (.thunder/<fw>/.config) — local toggles, generated
 **/.thunder/gains.md
+**/.thunder/*/.config
 
-# thunder-mind: decisions/ is the COMMITTED source of truth; the derived index in .thunder/mind/cache/
-# is gitignored by a .gitignore the engine drops there. Ignore the big synthetic scaling corpus only.
+# thunder-mind: .thunder/mind/decisions/ is the COMMITTED source of truth; the derived index lives in
+# .claude/cache/thunder-mind/ (covered by **/.claude/cache/ above). Ignore the synthetic scaling corpus.
 plugins/thunder-mind/minddemo-big/

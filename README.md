@@ -7,12 +7,18 @@ can explore, understand and navigate a codebase while spending **2–3 orders of
 
 ## Plugins
 
-| Plugin | Stack | Status |
-|---|---|---|
-| [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | ✅ available |
-| [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | ✅ available |
-| [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | ✅ available |
-| [`thunder-node`](./plugins/thunder-node) | Node.js backend (Express / Fastify / NestJS) | ✅ available |
+| Plugin | Stack | Version | Optimization rounds | Maturity |
+|---|---|---|---|---|
+| [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | `0.1.9` | 6 — R2…R5.5, two-tier card/detail, Tier-3 | ⭐⭐⭐ Mature |
+| [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | `0.1.10` | 4 — granularity, functional guards + HTTP (R2), ≥50-query sweep, Tier-3 | ⭐⭐⭐ Mature |
+| [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | `0.1.4` | 2 — multi-framework detection, Tier-3 | ⭐⭐ Stable |
+| [`thunder-node`](./plugins/thunder-node) | Node.js backend (Express / Fastify / NestJS) | `0.0.2` | 1 — initial (multi-framework) | ⭐ New |
+| [`thunder-react`](./plugins/thunder-react) | React.js (components / hooks / React Router) | `0.0.1` | 1 — initial | ⭐ New |
+
+> **Maturity** reflects how many dedicated optimization rounds a plugin has had (each round = a measured
+> token-cost or correctness improvement, documented in the plugin's `BENCHMARK.md`). ⭐ New = freshly
+> scaffolded & benched · ⭐⭐ Stable · ⭐⭐⭐ Mature (multiple measured rounds). All share the same Tier-3
+> layer (answer cache · tool-output pruning · per-framework DEBUG trace) and the ≥50-question sweep.
 
 > Shared architecture: pure Node.js engine (zero dependencies), cross-platform, sharded YAML index,
 > incremental cache, hooks that never spend tokens silently. Each plugin writes its index to its own

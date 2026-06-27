@@ -22,6 +22,7 @@ SKILL.md size (~4.3k) — not part of a per-answer data cost. State this in the 
 | thunder-angular | `ngdemo` | `ngdemo` | `gen-ngdemo.mjs ngdemo 40` |
 | thunder-python | `pydemo` | `pydemo` | `gen-pydemo.mjs pydemo` |
 | thunder-node | `nodedemo` | `nodedemo` | `gen-nodedemo.mjs nodedemo 40` |
+| thunder-react | `reactdemo` | `reactdemo` | `gen-reactdemo.mjs reactdemo 40` |
 
 `<cache>` = `<bed>/.claude/cache/<plugin>`. Extra bench: java/python `analyze.mjs <bed>`, angular `data-bench.mjs demo`.
 
