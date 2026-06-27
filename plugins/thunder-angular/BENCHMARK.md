@@ -33,3 +33,13 @@ files — but still **~8× cheaper than the sub-agent reflex** (A/C). The struct
 agent**.
 
 Rerun: `node engine/tools/gen-ngdemo.mjs ngdemo 40 && node engine/thunder.mjs build ngdemo && node engine/tools/token-bench.mjs ngdemo`
+
+## ROUND 5 — skill routing + 20-query sweep
+
+Routing tables added to `codemap`/`grok` (sym · project-brief · routes.yaml · grep capability-map · ask).
+`ask` now falls back to `project-brief.yaml` when a conceptual query matches no card, and module
+theme/keywords are part of its matching corpus. `ask --facts` for punctual factual questions.
+
+`tools/sweep-bench.mjs` (20 routed queries on `ngdemo`): **thunder wins 18/20, ~97% aggregate economy**
+(targets ≥18/20, ≥70%). The 2 remaining are punctual facts in tiny feature files (left as-is).
+Rerun: `node engine/tools/sweep-bench.mjs ngdemo`

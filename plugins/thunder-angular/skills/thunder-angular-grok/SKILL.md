@@ -20,6 +20,17 @@ two small index files here, in the main loop.
 ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${CLAUDE_PROJECT_DIR}"
 ```
 
+## Route the question FIRST (before reaching for `ask`)
+| Question shape | Entry point (cheapest) |
+|---|---|
+| "where is X defined", "who uses/injects X", "find the component/service X" | `node "$ENG" sym def\|refs <Name> "$ROOT"` (~30 tok, exact) |
+| "architecture", "how is it structured", "which projects/features", "overview" | `Read project-brief.yaml` — **not `ask`** |
+| "which routes", "list the screens" | `Read routes.yaml` |
+| "who handles / where is X" (discovery) | `Grep capability-map.yaml` |
+| business rule, flow, "what does X do" | `ask --facts "<kw>"` then `ask` |
+
+(If `ask` matches nothing, it now returns the project brief automatically.)
+
 ## Procedure (all inline)
 
 1. **Architecture / overview / "what does the app do" / list routes** → read **one** file:

@@ -15,6 +15,15 @@ rule.** A sub-agent costs ~**11k tokens of fixed overhead**; answering inline co
 Not spawning an agent IS the optimization. A sub-agent is justified only to read a real `.ts` method body /
 template — then 1 agent max, seeded with exact `file:line` from the index.
 
+## Route the question FIRST (before reaching for `ask`)
+| Question shape | Entry point (cheapest) |
+|---|---|
+| "where is X defined", "who uses/injects X", "find the component/service X" | `thunder.mjs sym def\|refs <Name>` (~30 tok, exact) |
+| "architecture", "how is it structured", "which projects/features", "overview" | `Read project-brief.yaml` — **not `ask`** |
+| "which routes", "list the screens" | `Read routes.yaml` |
+| "who handles / where is X" (discovery) | `Grep capability-map.yaml` |
+| business rule, flow, "what does X do" | `ask --facts "<kw>"` then `ask` |
+
 ## Workflow (all inline)
 
 1. **Architecture / overview / "what does the app do" / list routes** → read **one** file:
