@@ -37,7 +37,34 @@ export const routes: Routes = [
 ];
 `;
   const r = parseFile(src, 'app.routes.ts').routes.find((x) => x.path === 'admin');
-  assert.deepStrictEqual(r.guards, ['authGuard', 'scopeGuard']);
+  assert.deepStrictEqual(r.guards, ['authGuard', "scopeGuard('aura:admin')"]);
+});
+
+test('R2.1 factory-call guards keep their args (depth-aware split, multi-arg safe)', () => {
+  const src = `
+export const routes: Routes = [
+  { path: 'a', component: A, canActivate: [authGuard, scopeGuard('aura:admin', 'rw')] },
+];
+`;
+  const r = parseFile(src, 'app.routes.ts').routes.find((x) => x.path === 'a');
+  // the comma inside scopeGuard(...) must NOT split into a phantom guard
+  assert.deepStrictEqual(r.guards, ['authGuard', "scopeGuard('aura:admin', 'rw')"]);
+});
+
+test('R2.2 verb+URL: non-http-named HttpClient field, real verbs, normalized template URLs', () => {
+  const src = `
+@Injectable({ providedIn: 'root' })
+export class DocService {
+  private api = inject(HttpClient);
+  list() { return this.api.get(\`\${environment.apiUrl}/documents\`); }
+  upload(d) { return this.api.post(\`\${environment.apiUrl}/documents\`, d); }
+  remove(id) { return this.api.delete(\`\${environment.apiUrl}/documents/\${id}\`); }
+}
+`;
+  const t = parseFile(src, 'doc.service.ts').types[0];
+  assert.deepStrictEqual((t.http || []).map((h) => h.verb), ['GET', 'POST', 'DELETE'], 'verbs mapped per call, not all GET');
+  assert.deepStrictEqual((t.http || []).map((h) => h.url),
+    ['{apiUrl}/documents', '{apiUrl}/documents', '{apiUrl}/documents/{id}'], 'template URLs normalized (no null)');
 });
 
 test('#4 service HTTP facet (http.<verb> + httpResource)', () => {

@@ -49,7 +49,11 @@ export function rawTokens(root, relFiles) {
 const gainsPath = (root) => join(root, '.thunder', 'gains.md');
 const HEADER =
   '# Thunder — gain trace (DEBUG)\n\n' +
-  'Every row is one operation and the tokens it saved vs reading raw source. ' +
+  'Real **data-token** gain per operation. Methodology (so the numbers are honest):\n' +
+  '- **baseline tok** = tokens you would read from RAW SOURCE *without* the plugin to answer.\n' +
+  '- **thunder tok** = tokens actually ingested *with* the plugin (the card / cached answer / pruned output).\n' +
+  '- **saved = baseline − thunder.** This is pure data cost: it EXCLUDES the fixed harness/sub-agent\n' +
+  '  overhead (~10.6k/agent) AND the SKILL.md size (~4.3k) — those are not part of a per-answer data cost.\n\n' +
   'Written only while `.thunder.config` has `DEBUG=true`. Delete this file to reset.\n\n' +
   '| time (UTC) | plugin | op | detail | thunder tok | baseline tok | saved | saved % |\n' +
   '|---|---|---|---|---:|---:|---:|---:|\n';

@@ -421,3 +421,16 @@ Orthogonal axes (output / tool-results), so they compound with the index. `node 
   `.thunder/gains.md`. `DEBUG=false`/absent → zero overhead (one memoized config read; all gain math gated).
 - Tests: `engine/test/common.test.mjs` (12 cases: prune, ledger freshness/staleness/scope/gc, debug on/off).
 - No regression: existing tests + token/sweep benches unchanged.
+
+## Expanded sweep (≥50 questions) + honest gain methodology
+
+`sweep-bench` now generates **≥50 diverse questions** by iterating over every entity (classes,
+services, models/controllers, features, contexts), each routed to its cheapest entry point and capped
+(evenly sampled) so it stays fast on huge codebases. Zero-reference entities are excluded from
+"who uses X" (a non-question whose raw cost is 0). On `bigdemo`: **thunder wins 95/95 (100%) · 99% saved**.
+
+**Gain = data tokens only.** Every comparison is *thunder output* (card / answer / index command) vs
+*raw source you'd read without the plugin*. It EXCLUDES the fixed sub-agent overhead (~10.6k/agent)
+and the SKILL.md size (~4.3k) — those are not part of a per-answer data cost. The DEBUG trace
+(`.thunder/gains.md`) uses the same methodology.
+Rerun: `node engine/tools/sweep-bench.mjs bigdemo`

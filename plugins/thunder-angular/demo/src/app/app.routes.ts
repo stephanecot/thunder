@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { UserListComponent } from './users/user-list.component';
-import { authGuard } from './core/auth.guard';
+import { authGuard, scopeGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'users', pathMatch: 'full' },
@@ -15,6 +15,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/documents/document-list.component').then((m) => m.DocumentListComponent),
     canMatch: [authGuard],
+  },
+  {
+    path: 'administration/users',
+    loadComponent: () => import('./users/user-list.component').then((m) => m.UserListComponent),
+    canActivate: [authGuard, scopeGuard('aura:admin')],
   },
   {
     path: 'orders',

@@ -73,6 +73,8 @@ const paramType = (p) => {
 };
 
 const baseType = (t) => (t || '').replace(/<.*$/, '').replace(/\[\]$/, '').replace(/\s*\|.*$/, '').trim();
+// Normalize a URL literal: `${environment.apiUrl}/documents/${id}` → `{apiUrl}/documents/{id}`.
+const normalizeUrl = (s) => (s == null ? null : s.replace(/\$\{\s*([^}]+?)\s*\}/g, (_, e) => `{${e.split('.').pop().replace(/\(.*$/, '').trim()}}`));
 const isInjectable = (t) => { const b = baseType(t); return b && /^[A-Z]/.test(b) && !PRIMS.has(b); };
 
 function detectMember(rest, restRaw) {
@@ -138,9 +140,10 @@ function extractRoutes(raw, relPath) {
     else if (/loadChildren/.test(win)) { kind = 'lazy-children'; target = imp ? imp[1] : '(lazy)'; }
     else if (comp) { target = comp[1]; }
     else if (/children\s*:/.test(win)) { kind = 'parent'; }
-    // route guards (functional or class), e.g. canActivate: [authGuard, scopeGuard('aura:admin')]
-    const gm = win.match(/can(?:Activate|ActivateChild|Match|Deactivate)\s*:\s*\[([^\]]*)\]/);
-    const guards = gm ? gm[1].split(',').map((g) => g.trim().split('(')[0].trim()).filter(Boolean) : [];
+    // route guards (functional or class), e.g. canActivate: [authGuard, scopeGuard('aura:admin')].
+    // Depth-aware split keeps whole expressions so factory-call guards (and their args) survive.
+    const gm = win.match(/can(?:Activate|ActivateChild|Match|Deactivate|Load)\s*:\s*\[([\s\S]*?)\]/);
+    const guards = gm ? splitTopLevel(gm[1]).map((g) => g.trim()).filter(Boolean) : [];
     routes.push({ path: m[1], target, kind, line: i + 1, ...(guards.length ? { guards } : {}) });
   }
   return routes;
@@ -261,12 +264,16 @@ export function parseFile(raw, relPath) {
     // #4 HTTP facet: capture http.<verb>(…) / httpResource(…) inside a service method body and attach
     // it to the enclosing class (its backend contract). Detect on the cleaned line, URL from the raw.
     if (stack.length) {
-      const hv = cl.match(/(?:http\w*|HttpClient)\s*\.\s*(get|post|put|delete|patch)\b/i);
-      // httpResource(...) / httpResource<T>(...) is a reactive GET resource.
+      const cls = stack[stack.length - 1].type;
+      // Receivers that hold an HttpClient: the conventional `http`/`httpClient`, plus any field typed
+      // or `inject(HttpClient)`-ed under another name (`private api = inject(HttpClient)`).
+      const httpFields = ['http', 'httpClient', ...cls.props.filter((p) => p.inject === 'HttpClient' || baseType(p.type) === 'HttpClient').map((p) => p.name)];
+      const recv = `(?:this\\s*\\.\\s*)?(?:${[...new Set(httpFields)].map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
+      const hv = cl.match(new RegExp(`\\b${recv}\\s*\\.\\s*(get|post|put|delete|patch)\\b`, 'i'));
+      // httpResource(...) / httpResource<T>(...) is a reactive GET resource (unless an explicit method).
       if (hv || /\bhttpResource\s*(?:<[^>]*>)?\s*\(/.test(cl)) {
         const verb = (hv ? hv[1] : 'get').toUpperCase();
-        const url = (rl.match(/[`'"]([^`'"]*)[`'"]/) || [])[1] || null;
-        const cls = stack[stack.length - 1].type;
+        const url = normalizeUrl((rl.match(/[`'"]([^`'"]*)[`'"]/) || [])[1] || null);
         (cls.http ||= []).push({ verb, url });
       }
     }

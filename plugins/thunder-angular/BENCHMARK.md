@@ -103,3 +103,17 @@ Orthogonal axes (output / tool-results), so they compound with the index. `node 
   `.thunder/gains.md`. `DEBUG=false`/absent → zero overhead (one memoized config read; all gain math gated).
 - Tests: `engine/test/common.test.mjs` (12 cases: prune, ledger freshness/staleness/scope/gc, debug on/off).
 - No regression: existing tests + token/sweep benches unchanged.
+
+## ROUND 2 — completed the 2 partial Round-1 fixes + expanded sweep
+
+- **R2.1 factory-call guards**: `canActivate: [authGuard, scopeGuard('aura:admin')]` now parsed with a
+  depth-aware split → `guards: [authGuard, "scopeGuard('aura:admin')"]` (args preserved, multi-arg safe).
+- **R2.2 HTTP verb + URL**: track the HttpClient field name (so `private api = inject(HttpClient); api.post(...)`
+  is detected, not just `http.*`); map the real verb per call; normalize template URLs
+  (`${environment.apiUrl}/documents/${id}` → `{apiUrl}/documents/{id}`) instead of `null`/all-`GET`.
+- **Expanded sweep (≥50 questions)**: iterate every component/service/feature; feature overview→tier-1 card,
+  flow→tier-2 shard (exact & tiny); exclude zero-ref services from "who injects". On `ngdemo`:
+  **thunder wins 84/84 (100%) · 98% saved**.
+
+**Gain = data tokens only** (thunder output vs raw source), excluding sub-agent overhead and SKILL.md size.
+New tests: factory-guard + non-http-field/verb/URL cases. Rerun: `node engine/tools/sweep-bench.mjs ngdemo`

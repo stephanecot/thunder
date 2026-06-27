@@ -18,3 +18,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   return next(req);
 };
+
+// Factory guard: `scopeGuard('aura:admin')` returns a CanActivateFn bound to a required scope.
+export const scopeGuard = (scope: string): CanActivateFn => () => inject(AuthService).hasScope(scope);
