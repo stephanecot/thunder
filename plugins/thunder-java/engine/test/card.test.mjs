@@ -15,7 +15,7 @@ function facts() {
         ann: ['@RestController', '@RequestMapping("/users")'],
         methods: [
           { kind: 'method', name: 'UserController', sig: '(UserService)', isCtor: true, ann: [] },
-          { kind: 'method', name: 'create', sig: '(UserDto):User', ann: ['@PostMapping'] },
+          { kind: 'method', name: 'create', sig: '(UserDto):User', reqBody: 'UserDto', ann: ['@PostMapping'] },
         ],
         fields: [],
       }],

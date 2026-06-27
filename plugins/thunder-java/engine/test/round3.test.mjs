@@ -74,6 +74,14 @@ test('all 5 endpoints are derived with correct verbs/paths', () => {
   ]);
 });
 
+test('endpoint req is the @RequestBody type, not a comma-split annotation residue (R4.1)', () => {
+  const eps = derive([fact()]).endpoints;
+  const by = (fn) => eps.find((e) => e.fn === fn);
+  assert.strictEqual(by('TagController.createTag').req, 'TagRequest', 'POST body type');
+  assert.strictEqual(by('TagController.updateTag').req, 'TagRequest', 'PUT body type');
+  assert.strictEqual(by('TagController.getTags').req, null, 'GET with @RequestParam → no body');
+});
+
 test('fully-qualified annotation on a stereotype class is not mistaken for a member', () => {
   const src = `
 package p;

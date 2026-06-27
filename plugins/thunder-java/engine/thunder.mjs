@@ -17,8 +17,8 @@ import {
  * ranked top-N context cards + the #1 hit enriched (business_rules + flows) + matching endpoints.
  * Answer from this directly; do NOT also load index.yaml or individual card files.
  */
-function cmdAsk(root, query, topOverride) {
-  if (!query) { console.error('usage: ask "<keywords>" [--top N] <root>'); process.exit(1); }
+function cmdAsk(root, query, topOverride, factsMode = false) {
+  if (!query) { console.error('usage: ask "<keywords>" [--top N] [--facts] <root>'); process.exit(1); }
   const { model, functional } = build(root);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const scored = [];
@@ -34,6 +34,17 @@ function cmdAsk(root, query, topOverride) {
   let top = topOverride;
   if (top == null) top = (scored.length <= 1 || (scored[0].score >= 2 * (scored[1]?.score || 0))) ? 1 : 3;
   const sel = scored.slice(0, top);
+
+  // --facts: lean payload for a punctual factual question — only rules + endpoint signatures.
+  if (factsMode) {
+    const facts = sel.map(({ c, f, score }) => ({
+      score, id: c.id,
+      ...(f.business_rules ? { business_rules: f.business_rules } : {}),
+      endpoints: c.endpoints.map((e) => `${e.verb} ${e.path}${e.req ? ' <- ' + e.req : ''}${e.resp ? ' -> ' + e.resp : ''}`),
+    }));
+    console.log(dump({ query, matched: scored.length, facts }));
+    return;
+  }
   const cards = sel.map(({ c, f, score }, i) => ({
     score, id: c.id, name: f.name || c.name, purpose: f.purpose || null,
     ...(f.capabilities ? { capabilities: f.capabilities } : {}),
@@ -278,7 +289,7 @@ if (flags.has('--selftest')) {
     case 'sym': cmdSym(R(pos[3]), pos[1], pos[2]); break;          // sym <def|refs> <Name> [root]
     case 'ask':                                                    // ask "<keywords>" [--top N] [root]  |  ask --detail <id> [root]
       if (flags.has('--detail')) cmdAskDetail(R(pos[2]), pos[1]);
-      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : undefined; })());
+      else cmdAsk(R(pos[2]), pos[1], (() => { const i = argv.indexOf('--top'); return i >= 0 ? Number(argv[i + 1]) || 3 : undefined; })(), flags.has('--facts'));
       break;
     default: console.error(`unknown command: ${cmd}`); process.exit(1);
   }

@@ -77,17 +77,29 @@ function sliceLines(lines, sl, sc, el, ec) {
 }
 
 function detectMember(rest, typeName) {
-  if (rest.includes('(')) {
-    const m = rest.match(/(\w+)\s*\(([^)]*)\)/);
-    if (!m || CTRL.has(m[1])) return null;
-    const name = m[1];
-    const params = m[2].trim();
-    const before = rest.slice(0, m.index);
-    const isCtor = name === typeName && before.replace(MODS, '').trim() === '';
-    const ret = isCtor ? null : (before.replace(MODS, '').replace(/\s+/g, ' ').trim() || null);
-    const types = splitParams(params).map(paramType).filter(Boolean);
-    const sig = `(${types.join(', ')})` + (ret ? ':' + ret : '');
-    return { kind: 'method', name, sig, isCtor };
+  const open = rest.indexOf('(');
+  if (open >= 0) {
+    const nameM = rest.slice(0, open).match(/([\w$]+)\s*$/);
+    const before = nameM ? rest.slice(0, nameM.index) : '';
+    // a method/constructor decl: a bare name right before '(', and no '=' before it (else it's a
+    // field initializer call like `x = factory.create()`).
+    if (nameM && !CTRL.has(nameM[1]) && !/=/.test(before)) {
+      const name = nameM[1];
+      // depth-aware matching ')' — params may contain parens (annotation args like @RequestParam(...))
+      let depth = 0, end = -1;
+      for (let i = open; i < rest.length; i++) {
+        if (rest[i] === '(') depth++;
+        else if (rest[i] === ')') { depth--; if (depth === 0) { end = i; break; } }
+      }
+      const params = (end >= 0 ? rest.slice(open + 1, end) : rest.slice(open + 1)).trim();
+      const isCtor = name === typeName && before.replace(MODS, '').trim() === '';
+      const ret = isCtor ? null : (before.replace(MODS, '').replace(/\s+/g, ' ').trim() || null);
+      const parts = splitParams(params);
+      const types = parts.map(paramType).filter(Boolean);
+      const bodyPart = parts.find((p) => /@RequestBody\b/.test(p));
+      const sig = `(${types.join(', ')})` + (ret ? ':' + ret : '');
+      return { kind: 'method', name, sig, isCtor, reqBody: bodyPart ? paramType(bodyPart) : null };
+    }
   }
   const fm = rest.match(/^([\w.$<>\[\],\s]+?)\s+(\w+)\s*[=;]/);
   if (fm) {
@@ -160,18 +172,15 @@ export function parseFile(raw, relPath) {
       consumed = true;
     } else if (stack.length && depth === stack[stack.length - 1].bodyDepth) {
       const top = stack[stack.length - 1].type;
-      // multi-line method signature: capture params across lines so the method (and its
-      // @PostMapping/@GetMapping endpoint) is not missed when the `)` is on a later line.
+      // Always capture the param list from the CLEANED source (annotations retained): this catches
+      // multi-line signatures AND keeps @RequestBody param types detectable (scanAnnotations would
+      // have blanked them on a single line).
       let rest2 = rest;
       const openIdx = stripped.indexOf('(');
       if (openIdx >= 0) {
-        let bal = 0;
-        for (const ch of stripped) { if (ch === '(') bal++; else if (ch === ')') bal--; }
-        if (bal > 0) {
-          const span = captureParensSpan(cleanLines, li, openIdx);
-          const params = sliceLines(cleanLines, li, openIdx + 1, span.endLine, span.endCol).replace(/\s+/g, ' ').trim();
-          rest2 = (stripped.slice(0, openIdx) + '(' + params + ')').trim();
-        }
+        const span = captureParensSpan(cleanLines, li, openIdx);
+        const params = sliceLines(cleanLines, li, openIdx + 1, span.endLine, span.endCol).replace(/\s+/g, ' ').trim();
+        rest2 = (stripped.slice(0, openIdx) + '(' + params + ')').trim();
       }
       const member = detectMember(rest2, top.name);
       if (member) {

@@ -334,3 +334,30 @@ Fichiers touchés : `engine/lib/parser.mjs` (scanAnnotations qualifié + multi-l
 (TagController), `engine/tools/token-bench.mjs` (7ᵉ question). **46 tests verts.**
 
 Relance : `node engine/tools/token-bench.mjs realdemo`
+
+---
+
+## 11. ROUND 4 — polish
+
+**R4.1 — champ `req` pollué corrigé** (même racine que R3.1). Sur les méthodes à params annotés,
+`detectMember` capturait les params avec `\(([^)]*)\)` → tronquait à la 1ʳᵉ `)` *dans* l'annotation
+(`@Parameter(description = …)`) → sig faux (`(@Parameter(description):…`) et `req` pollué. Fixes :
+- capture des params **profondeur-consciente** (matching `)` réel) ;
+- params lus depuis `cleanLines` **dans tous les cas** (annotations conservées → le `@RequestBody` reste
+  détectable ; `scanAnnotations` les blanchissait sur une ligne) ;
+- garde anti-initialiseur (`x = factory.create()` n'est pas une méthode) ;
+- `req` = **type du param `@RequestBody`** (propre), plus un split naïf sur la virgule.
+
+Tests : `getTags.req = null`, `createTag/updateTag.req = TagRequest`. `endpoints.yaml` vérifié propre.
+
+**R4.2 — `ask --facts "<kw>"`** : payload maigre pour une question **factuelle** (uniquement
+`business_rules` + signatures d'endpoints `VERB path <- req -> resp`, sans purpose/capabilities/types).
+Pour répondre à un fait ponctuel sous le coût du raw.
+
+**R4.3 — re-bench** (`realdemo`, 7 questions) : total **A = 1 % de B** (cible ≤ 30 %), A/C = 11 %, 7/7 inline.
+*Note : R3.2 (ask top-1 adaptatif) reste en place mais ne se déclenche pas sur les faits non-dominants ;
+ces questions ponctuelles restent parfois moins chères en raw — c'est l'agrégat qui compte.*
+
+Fichiers : `engine/lib/parser.mjs` (detectMember profondeur-conscient + reqBody + garde init),
+`engine/lib/derive.mjs` (`req` = reqBody), `engine/thunder.mjs` (`ask --facts`),
+`engine/test/round3.test.mjs` (asserts `req`). **47 tests verts.**

@@ -34,6 +34,8 @@ ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${CLAUDE_PROJECT_DIR}"
    `flows`**, so the question is answerable **from this single payload**. **Do NOT also load `index.yaml`,
    `capability-map.yaml`, or individual `.card.yaml` files** — that combo is pure waste.
    - Need more hits: `ask "<kw>" --top 6 "$ROOT"`.
+   - Punctual factual question (a rule, an endpoint signature): `ask --facts "<kw>" "$ROOT"` → lean payload
+     (only `business_rules` + endpoint signatures, no purpose/capabilities/types).
    - Need the full detail of one context (precise signatures, field annotations, all use-cases):
      `node "$ENG" ask --detail <id> "$ROOT"` (one call, prints the detail shard).
 

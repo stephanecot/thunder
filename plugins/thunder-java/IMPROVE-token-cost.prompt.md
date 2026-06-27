@@ -1,10 +1,13 @@
 > ## ⏩ ÉTAT — COMMENCE ICI
-> Les rounds 1 et 2 sont **déjà implémentés et validés** (ne pas refaire). Mesures actuelles :
-> thunder inline = **25 % du coût raw**, **~27× moins** que le fan-out ; `project-brief.yaml`,
-> `ask` top-3, `--detail`, tiering cards = en place.
-> **Le travail ACTIF est le `# ROUND 3` en bas du fichier** — un bug de justesse (parseur,
-> endpoints faux) + un fix `ask` ponctuel. Va directement à R3.1 / R3.2 / R3.3.
-> Les rounds 1-2 ci-dessous restent comme contexte/historique.
+> Rounds 1, 2 et **R3.1 (bug parseur endpoints) = faits et validés** (ne pas refaire).
+> Mesures actuelles : thunder inline = **32 % du coût raw** (3× moins cher), **correctness OK**
+> (7 endpoints, les 5 de TagController captés). On est en zone de POLISH.
+> **Travail ACTIF = `# ROUND 4` en bas du fichier** (cartes maigres pour faits ponctuels +
+> fix champ `req` pollué). R3.2 a été abandonné/reformulé — voir R4. Le reste est historique.
+>
+> ⚠️ Avant de mesurer : le parse cache doit être purgé pour reparser (`rm cache.ndjson`),
+> sinon les vieux résultats bugués sont réutilisés. Et 2 contextes sont repassés `changed`
+> (tag, exception) → re-inférer via `/thunder-java:thunder-java-reindex`.
 
 ---
 
@@ -222,3 +225,37 @@ Q5 repasse sous le raw, et ajoute une 7e question « liste tous les endpoints de
 DOIT maintenant répondre juste (5 endpoints) en mode inline depuis `endpoints.yaml`.
 
 Garde-fous inchangés (rétro-compat, pas de reset des hashes/inférence, tests verts).
+
+---
+
+# ROUND 4 — polish (après validation de R3.1)
+
+R3.1 a marché (endpoints corrigés, 7 dont les 5 de TagController, Q7 juste en 302 tok).
+Bench actuel : thunder inline = **32 % du raw** (3× moins cher). Reste du polish, pas de
+blocage. R3.2 (ask top-1 adaptatif) est ABANDONNÉ : Q5 « unicité » n'a pas de hit dominant
+(la règle vit dans 2 contextes), donc un top-1 ne se déclencherait pas, et Q5 est la question
+la moins chère en raw (377 tok) — thunder n'a pas à la gagner. Remplacé par :
+
+## R4.1 — [P1, BUG] champ `req` des endpoints pollué (même racine que R3.1)
+Sur les endpoints à params multi-lignes, `endpoints.yaml` émet `req: "@Parameter(description"`
+au lieu du vrai type. Cause : `derive.mjs:113-114` fait `params.split(',')[0]` — la 1re virgule
+tombe DANS l'annotation `@Parameter(description = "...")`. Fix : réutiliser le split
+profondeur-conscient et le strip d'annotations déjà présents dans `parser.mjs`
+(`splitParams` lignes 38-49 + `paramType` lignes 51-56) au lieu d'un split naïf. Attendu :
+`getTags.req` = `String` (ou null), `updateTag.req` = `UpdateTagRequest`. Ajoute l'assert au
+test endpoints de R3.1.
+
+## R4.2 — [P2, optionnel] cartes plus maigres pour les faits ponctuels
+Q5 : `ask` renvoie 3 cartes complètes (921 tok) là où la réponse (`@Indexed(unique=true)`)
+tient en 2 fichiers de 60 lignes (raw 377 tok). Plutôt qu'un top-1 (inopérant ici), offre un
+mode fait-ponctuel : `ask --facts "<kw>"` qui ne renvoie QUE les `business_rules` + signatures
+matchantes (pas purpose/capabilities/glossary), ~1 ligne par hit. But : répondre à une
+question factuelle sous le coût du raw. Faible priorité — n'impacte que la question la moins
+chère ; à ne faire que si trivial.
+
+## R4.3 — re-bench + garder l'œil sur l'agrégat, pas chaque question
+Relance `tools/token-bench.mjs`. Cible : total A ≤ 30 % de B. Ne te bats PAS pour faire gagner
+thunder sur chaque question isolée (certains faits ponctuels resteront moins chers en raw, et
+c'est OK) — c'est l'agrégat sur questions réalistes qui compte. Documente dans `BENCHMARK.md`.
+
+Garde-fous inchangés.
