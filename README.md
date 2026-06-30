@@ -104,13 +104,16 @@ commits its *decisions* instead.)
 
 ### GitHub Copilot CLI
 
-The Copilot variants are **generated** from the same source (see [Dual-host build](#dual-host-build)):
+Same as Claude — install straight **from GitHub, no clone or build needed**. The Copilot variants are
+committed under `dist/copilot/` and listed in `.github/plugin/marketplace.json` at the repo root:
 
 ```bash
-node build.mjs                                 # build dist/copilot/ (+ dist/claude/)
-copilot plugin marketplace add .               # reads .github/plugin/marketplace.json (repo root)
-copilot plugin install thunder-java            # idem thunder-angular / thunder-python
+copilot plugin marketplace add stephanecot/thunder   # reads .github/plugin/marketplace.json from GitHub
+copilot plugin install thunder-java                  # idem thunder-angular / -python / -node / -react / -mind
 ```
+
+> Maintainers regenerate the committed `dist/copilot/` with `node build.mjs` (see
+> [Dual-host build](#dual-host-build)); end users never run it.
 
 See each plugin's README for details (e.g. [`plugins/thunder-java/README.md`](./plugins/thunder-java/README.md)).
 

@@ -17,14 +17,16 @@ dist/
 ## Installer
 
 ```bash
-# GitHub Copilot CLI (depuis la racine du repo)
-node build.mjs
-copilot plugin marketplace add .          # lit .github/plugin/marketplace.json
-copilot plugin install thunder-python     # idem thunder-java / thunder-angular
+# GitHub Copilot CLI (depuis GitHub — pas de clone)
+copilot plugin marketplace add stephanecot/thunder   # lit .github/plugin/marketplace.json
+copilot plugin install thunder-python                # idem thunder-java / -angular / -node / -react / -mind
 
 # Claude Code
 /plugin marketplace add stephanecot/thunder
 /plugin install thunder-python@thunder
+
+# (mainteneur, test local depuis la racine du repo)
+node build.mjs && copilot plugin marketplace add .
 ```
 
 ## Ce que le build dérive pour Copilot (tout le reste est identique)
