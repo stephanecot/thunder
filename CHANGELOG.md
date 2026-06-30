@@ -11,10 +11,10 @@ the version a change applies to is noted inline. Per-plugin measured results liv
 | Plugin | Version |
 |---|---|
 | `thunder-java` | 0.1.12 |
-| `thunder-angular` | 0.1.12 |
-| `thunder-python` | 0.1.6 |
-| `thunder-node` | 0.0.4 |
-| `thunder-react` | 0.0.3 |
+| `thunder-angular` | 0.1.13 |
+| `thunder-python` | 0.1.7 |
+| `thunder-node` | 0.0.5 |
+| `thunder-react` | 0.0.4 |
 | `thunder-mind` | 0.2.0 |
 
 ## [Unreleased]
@@ -33,6 +33,9 @@ the version a change applies to is noted inline. Per-plugin measured results liv
   Net: a 350-context project drops from ~7M tokens to **~2M, almost all on cheap Haiku input** (the expensive
   Opus share, which dominated, nearly disappears). Evidence packs live under the gitignored
   `.thunder/java/evidence/`.
+- **Same batched, file-based reindex propagated to every framework plugin** — `thunder-angular` `0.1.13`,
+  `thunder-python` `0.1.7`, `thunder-node` `0.0.5`, `thunder-react` `0.0.4`: identical `evidence-batch` /
+  `set-functional-batch` commands, cartographer batch mode, and the rewritten `reindex` cost-model flow.
 
 ## [2026-06-27a]
 

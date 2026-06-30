@@ -1,7 +1,7 @@
 {
   "name": "thunder-angular",
   "description": "Token-minimal comprehension, exploration and navigation of Angular/TypeScript codebases. Pure-Node, zero-dependency engine that builds a hierarchical YAML index (technical: components, services, routes, NgModules, DI graph + inferred functional layer), kept fresh by hooks.",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "author": {
     "name": "Stéphane Cottin",
     "email": "stephanecot@gmail.com"

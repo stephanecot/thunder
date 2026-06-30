@@ -20,16 +20,38 @@ ENG="${PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${PWD}"
 - **`--full`**: `node "$ENG" reset-functional "$ROOT"`, then the flow below.
 - **(default)**: incremental — the flow below.
 
+## ⚡ Cost model — read before inferring
+The functional pass must scale to **hundreds of contexts** cheaply. Two rules:
+1. **Never let evidence packs pass through your (orchestrator) context** — each is ~4k tokens of source;
+   piping hundreds through here is a quadratic blow-up on the expensive model. `evidence-batch` writes each
+   pack to a **file**; you hand the cartographer only the **paths** (it `Read`s them itself).
+2. **Batch contexts per sub-agent** — ~10 contexts per cartographer call, a few in parallel — instead of
+   one ~10k-token sub-agent boot per context.
+> Do **not** loop the single-context `evidence`/`set-functional` here — that pattern cost ~7M tokens on a
+> real project. Use `evidence-batch` + batched Tasks + `set-functional-batch`.
+
 ## Functional enrichment flow
-1. `node "$ENG" build "$ROOT" >/dev/null` then `node "$ENG" stale --json "$ROOT"`. If empty, say "already up to date" and stop.
-2. **Budget & consent**: default **15 contexts/run** (a full vertical feature ≈ 10-12 — clear it without
-   truncation). If stale count **reaches or exceeds** the budget (≥, not >), or it looks costly, **ask for
-   confirmation** (AskUserQuestion) stating how many will be inferred. Never truncate silently — say what remains stale.
-3. For each retained context: `node "$ENG" evidence <id> "$ROOT"` → delegate to **thunder-python-cartographer**
-   (the @thunder-python-cartographer agent) → it returns strict JSON → pipe into
-   `node "$ENG" set-functional <id> "$ROOT"`. Run several in parallel, capped ~6.
-4. **Project rollup**: `node "$ENG" stale-modules --json "$ROOT"`; for each → `module-evidence <project>` →
-   cartographer (rollup → `{theme, keywords}`) → `set-module-functional <project>`.
-5. Summary: how many contexts/projects (re)inferred, what remains stale.
+1. **Refresh + count stale** (cheap — ids only): `node "$ENG" build "$ROOT" >/dev/null` then
+   `node "$ENG" stale --json "$ROOT"`. If empty, say "functional layer already up to date" and stop.
+2. **Budget & consent**: default **40 contexts/run**. If the stale count reaches/exceeds the budget or it
+   looks costly, **ask for confirmation** (AskUserQuestion) stating how many will be inferred and that the
+   rest stay stale for the next run. Never infer hundreds silently; never truncate silently.
+3. **Materialize packs to disk** (NOT into your context):
+   `node "$ENG" evidence-batch "$ROOT" --limit <budget>` → prints a tiny manifest
+   `{outDir, totalStale, written, contexts:[{id, reason, path}, …]}`. Only ids + paths reach you; the
+   packs stay in files. (Omit `--limit` to materialize all stale contexts.)
+4. **Infer in batches** — split `contexts` into groups of **~10**. For each group spawn ONE
+   **thunder-python-cartographer** (the @thunder-python-cartographer agent), passing only the ids + paths of that group:
+   `{"contexts":[{"id":"…","path":"/…/evidence/….json"}, …]}`. Run up to **~4 groups in parallel**
+   (several Task calls in one message). Each returns a **JSON array** of `{id, name, purpose, capabilities,
+   business_rules, intents, glossary, confidence}` (one per context, id echoed).
+5. **Persist the batch in one call** — concatenate every array the cartographer returned into a single JSON
+   array, write it to a temp file, then `node "$ENG" set-functional-batch "$ROOT" < /tmp/thunder-func.json`
+   → `{set, failed}` (re-emits shards once). If a group returned non-JSON, retry it once at half size; drop
+   and report any context that still fails.
+6. **Project rollup** (small & cheap, no source): `node "$ENG" stale-modules --json "$ROOT"`; for each →
+   `module-evidence <project>` → cartographer (rollup → `{theme, keywords}`) → `set-module-functional
+   <project>`. Run several in parallel.
+7. Summary: how many contexts/projects (re)inferred, what remains stale.
 
 > **All index text must be ENGLISH.** The cartographer handles it; never write other languages into the index.

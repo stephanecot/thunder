@@ -26,7 +26,7 @@
       "name": "thunder-angular",
       "source": "./dist/copilot/thunder-angular",
       "description": "Token-minimal comprehension, exploration and navigation of Angular/TypeScript codebases (components, services, routes, NgModules, DI graph + inferred functional layer).",
-      "version": "0.1.12",
+      "version": "0.1.13",
       "keywords": [
         "angular",
         "typescript",
@@ -39,7 +39,7 @@
       "name": "thunder-python",
       "source": "./dist/copilot/thunder-python",
       "description": "Token-minimal comprehension, exploration and navigation of Python codebases — FastAPI / Flask / Django / plain (routes, models, classes, DI, framework-aware + inferred functional layer).",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "keywords": [
         "python",
         "fastapi",
@@ -54,7 +54,7 @@
       "name": "thunder-node",
       "source": "./dist/copilot/thunder-node",
       "description": "Token-minimal comprehension, exploration and navigation of Node.js backend codebases — Express / Fastify / NestJS (controllers, services, HTTP endpoints, DI graph, framework-aware + inferred functional layer).",
-      "version": "0.0.4",
+      "version": "0.0.5",
       "keywords": [
         "nodejs",
         "express",
@@ -70,7 +70,7 @@
       "name": "thunder-react",
       "source": "./dist/copilot/thunder-react",
       "description": "Token-minimal comprehension, exploration and navigation of React.js codebases (function/class components, custom hooks, React Router routes, prop & dependency graph + inferred functional layer).",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "keywords": [
         "react",
         "reactjs",

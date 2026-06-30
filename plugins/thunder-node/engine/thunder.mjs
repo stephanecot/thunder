@@ -78,6 +78,43 @@ function cmdStale(root, asJson) {
   for (const s of stale) console.log(`  ${s.id}  [${s.reason}]`);
 }
 
+// Batched, file-based evidence — see the reindex skill's cost model. Packs go to FILES + the Haiku
+// sub-agent, never through the (Opus) orchestrator's context; N sub-agents collapse to N/batch. This is
+// the fix for the O(N^2)/hundreds-of-sub-agents blow-up on the functional pass.
+function cmdEvidenceBatch(root, limit, outArg) {
+  const { model, functional } = build(root);
+  const stale = staleContexts(model, root, functional);
+  const sel = (limit && limit > 0) ? stale.slice(0, limit) : stale;
+  const outDir = outArg ? resolve(outArg) : join(cacheDir(root), 'evidence');
+  ensureDir(outDir);
+  const contexts = [];
+  for (const s of sel) {
+    const ctx = model.contexts.find((c) => c.id === s.id);
+    if (!ctx) continue;
+    const file = join(outDir, s.id.replace(/[^\w.-]/g, '_') + '.json');
+    writeFileSync(file, JSON.stringify(buildEvidence(ctx, root)));
+    contexts.push({ id: s.id, reason: s.reason, path: file });
+  }
+  console.log(JSON.stringify({ outDir, totalStale: stale.length, written: contexts.length, contexts }));
+}
+
+async function cmdSetFunctionalBatch(root) {
+  const { model } = build(root);
+  const chunks = [];
+  for await (const c of process.stdin) chunks.push(c);
+  let data;
+  try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+  catch (e) { console.error('invalid JSON on stdin:', e.message); process.exit(1); }
+  if (!Array.isArray(data)) { console.error('expected a JSON array of {id, ...} on stdin'); process.exit(1); }
+  const done = [], failed = [];
+  for (const d of data) {
+    try { setFunctional(root, model, d.id, d); done.push(d.id); }
+    catch (e) { failed.push({ id: d && d.id, error: e.message }); }
+  }
+  build(root); // re-emit shards once, with all merged functional data
+  console.log(JSON.stringify({ set: done.length, failed }));
+}
+
 function cmdStaleModules(root, asJson) {
   const { model, functional } = build(root);
   const stale = staleModules(model, root, functional);
@@ -298,7 +335,7 @@ async function selftest() {
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--')));
-const VALUE_FLAGS = new Set(['--root', '--top', '--q', '--ctx', '--scope']);
+const VALUE_FLAGS = new Set(['--root', '--top', '--q', '--ctx', '--scope', '--limit', '--out']);
 const pos = argv.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.has(argv[i - 1]));
 const cmd = pos[0] || 'build';
 const rootArg = (() => { const i = argv.indexOf('--root'); return i >= 0 ? argv[i + 1] : null; })();
@@ -323,7 +360,9 @@ if (flags.has('--selftest')) {
     case 'reset-functional': cmdResetFunctional(R(pos[1])); break;
     case 'touch': cmdTouch(R(pos[2]), pos[1]); break;
     case 'evidence': cmdEvidence(R(pos[2]), pos[1]); break;
+    case 'evidence-batch': cmdEvidenceBatch(R(pos[1]), Number(flagVal('--limit')) || 0, flagVal('--out')); break;
     case 'set-functional': cmdSetFunctional(R(pos[2]), pos[1]); break;
+    case 'set-functional-batch': cmdSetFunctionalBatch(R(pos[1])); break;
     case 'module-evidence': cmdModuleEvidence(R(pos[2]), pos[1]); break;
     case 'set-module-functional': cmdSetModuleFunctional(R(pos[2]), pos[1]); break;
     case 'sym': cmdSym(R(pos[3]), pos[1], pos[2]); break;
