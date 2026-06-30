@@ -199,6 +199,44 @@ async function cmdSetFunctional(root, ctxId) {
   console.log(`thunder: fonctionnel mis à jour pour ${ctxId} (evidence_hash ${entry.evidence_hash})`);
 }
 
+// Batched, file-based evidence: write each stale context's pack to a file and print only a tiny
+// manifest (ids + paths). The reindex skill hands those PATHS to ONE cartographer per batch, so the
+// 3.8k-token packs travel through files + the Haiku sub-agent — never through the (Opus) orchestrator's
+// context — and N sub-agents collapse to N/batch. This is the fix for the O(N²)/350-sub-agent blow-up.
+function cmdEvidenceBatch(root, limit, outArg) {
+  const { model, functional } = build(root);
+  const stale = staleContexts(model, root, functional);
+  const sel = (limit && limit > 0) ? stale.slice(0, limit) : stale;
+  const outDir = outArg ? resolve(outArg) : join(cacheDir(root), 'evidence');
+  ensureDir(outDir);
+  const contexts = [];
+  for (const s of sel) {
+    const ctx = model.contexts.find((c) => c.id === s.id);
+    if (!ctx) continue;
+    const file = join(outDir, s.id.replace(/[^\w.-]/g, '_') + '.json');
+    writeFileSync(file, JSON.stringify(buildEvidence(ctx, root)));
+    contexts.push({ id: s.id, reason: s.reason, path: file });
+  }
+  console.log(JSON.stringify({ outDir, totalStale: stale.length, written: contexts.length, contexts }));
+}
+
+// Merge a whole batch of inferred contexts in one call: stdin is a JSON array of {id, ...funcFields}.
+// Re-emits shards ONCE after all merges (vs once per context). Reports which ids set / failed.
+async function cmdSetFunctionalBatch(root) {
+  const { model } = build(root);
+  let data;
+  try { data = JSON.parse(await readStdinAll()); }
+  catch (e) { console.error('invalid JSON on stdin:', e.message); process.exit(1); }
+  if (!Array.isArray(data)) { console.error('expected a JSON array of {id, ...} on stdin'); process.exit(1); }
+  const done = [], failed = [];
+  for (const d of data) {
+    try { setFunctional(root, model, d.id, d); done.push(d.id); }
+    catch (e) { failed.push({ id: d && d.id, error: e.message }); }
+  }
+  build(root); // re-emit shards once, with all merged functional data
+  console.log(JSON.stringify({ set: done.length, failed }));
+}
+
 function cmdStaleModules(root, asJson) {
   const { model, functional } = build(root);
   const stale = staleModules(model, root, functional);
@@ -339,7 +377,7 @@ async function selftest() {
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--')));
-const VALUE_FLAGS = new Set(['--root', '--top', '--q', '--ctx', '--scope']); // their following token is a value, not a positional
+const VALUE_FLAGS = new Set(['--root', '--top', '--q', '--ctx', '--scope', '--limit', '--out']); // their following token is a value, not a positional
 const pos = argv.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.has(argv[i - 1]));
 const flagVal = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
 const cmd = pos[0] || 'build';
@@ -369,7 +407,9 @@ if (flags.has('--selftest')) {
     case 'config': cmdConfig(R(pos[1])); break;                    // config [root]
     case 'touch': cmdTouch(R(pos[2]), pos[1]); break;              // touch <file> [root]
     case 'evidence': cmdEvidence(R(pos[2]), pos[1]); break;        // evidence <ctxId> [root]
+    case 'evidence-batch': cmdEvidenceBatch(R(pos[1]), Number(flagVal('--limit')) || 0, flagVal('--out')); break; // evidence-batch [root] [--limit N] [--out dir]
     case 'set-functional': cmdSetFunctional(R(pos[2]), pos[1]); break; // set-functional <ctxId> [root]
+    case 'set-functional-batch': cmdSetFunctionalBatch(R(pos[1])); break; // set-functional-batch [root]  (stdin: JSON array)
     case 'sym': cmdSym(R(pos[3]), pos[1], pos[2]); break;          // sym <def|refs> <Name> [root]
     case 'cache-answer': cmdCacheAnswer(R(pos[1]), flagVal('--q'), flagVal('--ctx'), flagVal('--scope')); break;
     case 'cache-gc': cmdCacheGc(R(pos[1])); break;

@@ -17,7 +17,7 @@ can explore, understand and navigate a codebase while spending **2–3 orders of
 
 | Plugin | Stack | Version | Optimization rounds | Maturity |
 |---|---|---|---|---|
-| [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | `0.1.11` | 7 — R2…R5.5, two-tier card/detail, Tier-3 | ⭐⭐⭐ Mature |
+| [`thunder-java`](./plugins/thunder-java) | Java / Spring Boot (Maven) | `0.1.12` | 7 — R2…R5.5, two-tier card/detail, Tier-3 | ⭐⭐⭐ Mature |
 | [`thunder-angular`](./plugins/thunder-angular) | Angular / TypeScript | `0.1.12` | 5 — granularity, functional guards + HTTP (R2), ≥50-query sweep, Tier-3 | ⭐⭐⭐ Mature |
 | [`thunder-python`](./plugins/thunder-python) | Python (FastAPI / Flask / Django / plain) | `0.1.6` | 3 — multi-framework detection, Tier-3 | ⭐⭐ Stable |
 | [`thunder-node`](./plugins/thunder-node) | Node.js backend (Express / Fastify / NestJS) | `0.0.4` | 2 — initial (multi-framework) | ⭐ New |

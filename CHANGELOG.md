@@ -10,7 +10,7 @@ the version a change applies to is noted inline. Per-plugin measured results liv
 
 | Plugin | Version |
 |---|---|
-| `thunder-java` | 0.1.11 |
+| `thunder-java` | 0.1.12 |
 | `thunder-angular` | 0.1.12 |
 | `thunder-python` | 0.1.6 |
 | `thunder-node` | 0.0.4 |
@@ -18,6 +18,21 @@ the version a change applies to is noted inline. Per-plugin measured results liv
 | `thunder-mind` | 0.2.0 |
 
 ## [Unreleased]
+
+## [2026-06-30]
+
+### Changed
+- **`thunder-java`** `0.1.12` — **functional reindex made cheap at scale.** Inferring the business layer of
+  a large project previously spawned **one sub-agent per context** and routed each ~4k-token evidence pack
+  through the (Opus) orchestrator → quadratic blow-up (~7M tokens / 350 sub-agents on a real project). Now:
+  - new engine commands `evidence-batch` (writes every stale context's pack to a **file**, prints only a
+    tiny ids+paths manifest) and `set-functional-batch` (merges a whole batch in one call, re-emits once);
+  - the cartographer agent gained a **batch mode** (given file paths, it `Read`s the packs itself);
+  - the `reindex` skill now materializes packs to disk and infers **~10 contexts per sub-agent**, a few in
+    parallel — so packs never touch the orchestrator's context and N sub-agents collapse to N/10.
+  Net: a 350-context project drops from ~7M tokens to **~2M, almost all on cheap Haiku input** (the expensive
+  Opus share, which dominated, nearly disappears). Evidence packs live under the gitignored
+  `.thunder/java/evidence/`.
 
 ## [2026-06-27a]
 

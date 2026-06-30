@@ -27,6 +27,7 @@ node_modules/
 **/.thunder/*/manifest.json
 **/.thunder/*/dirty.list
 **/.thunder/*/qa-ledger.ndjson
+**/.thunder/*/evidence/
 
 # This repo's own framework demos are fixtures — don't commit their generated index (no functional
 # layer here anyway; it needs the cartographer agent). The committed-index behavior is for real projects.
