@@ -25,7 +25,7 @@ ENG="${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs"; ROOT="${CLAUDE_PROJECT_DIR}"
    }
    ```
    It returns **strict English JSON**: `{title, type, status, domain, context, decision, rationale,
-   consequences, alternatives, tags, supersedes, conflicts_with, confidence}`.
+   consequences, alternatives, tags, evidence, supersedes, conflicts_with, confidence}`.
 3. **Write it** (the engine validates, dedups, captures evidence hashes, rebuilds the index):
    ```bash
    echo '<scribe JSON>' | node "$ENG" add "$ROOT" --author "<name>" --date "<YYYY-MM-DD>"

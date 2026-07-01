@@ -53,3 +53,17 @@ The SessionStart injection is only the **tier-0 constitution** (cross-cutting in
 - **Need the exhaustive list?** grep `.claude/cache/thunder-mind/domain-map.yaml` (every decision).
 
 Nothing is dropped: recall + domain-map reach **100%** of decisions regardless of corpus size.
+
+## Tier-3 — persist a pure-index answer (this is what fills the answer cache)
+`recall` already CHECKS the answer cache first and relays a fresh prior answer at ~0 tokens — but the
+cache only ever HITS if something WRITES to it. After you answered a question **purely from the decision
+index** (no source read, no judgment call), persist it so the next identical/paraphrased question is free:
+
+```
+printf '%s' "<your answer text>" | node "${CLAUDE_PLUGIN_ROOT}/engine/thunder.mjs" \
+  cache-answer --q "<the user's question>" --ctx <decisionId[,decisionId...]> "${CLAUDE_PROJECT_DIR}"
+```
+
+- `--ctx` = the decision id(s) your answer relied on (each card's `id`). Freshness is gated on those
+  decisions' file hashes, so the entry **auto-invalidates** when any of them is edited or superseded.
+- Persist ONLY deterministic, index-derived answers — skip it if you weighed trade-offs or read code.

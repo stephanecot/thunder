@@ -10,8 +10,24 @@ import { ACTIVE_STATUSES } from './decision.mjs';
 //  - evidence-stale   : a cited source file changed since the decision was recorded
 //  - evidence-missing : a cited source file no longer exists
 
-const isFileRef = (ref) => /[\/.]/.test(String(ref)) && !/^(PR|#|https?:)/i.test(String(ref));
 const filePart = (ref) => String(ref).replace(/:\d+(-\d+)?$/, '');
+// A ref is a FILE path only if it looks like one: no whitespace, not a PR/URL/issue ref, and either a
+// slash or a letter-led extension. Plain "v2.0" / "RFC 7807.1" must not be flagged evidence-missing.
+const isFileRef = (ref) => {
+  const s = String(ref);
+  if (/\s/.test(s) || /^(PR|#|https?:)/i.test(s)) return false;
+  return s.includes('/') || /\.[a-z][a-z0-9]{0,5}$/i.test(filePart(s));
+};
+
+/** Content a ref actually cites: the `:N` / `:N-M` line range when present, else the whole file —
+ * so an unrelated edit elsewhere in a big file no longer flags the decision as drifted. */
+function citedContent(abs, ref) {
+  const text = readFileSync(abs, 'utf8');
+  const m = String(ref).match(/:(\d+)(?:-(\d+))?$/);
+  if (!m) return text;
+  const a = Math.max(1, Number(m[1])), b = m[2] ? Number(m[2]) : a;
+  return text.split('\n').slice(a - 1, b).join('\n');
+}
 
 export function conflicts(model, root) {
   const out = [];
@@ -33,23 +49,24 @@ export function conflicts(model, root) {
       const rel = filePart(ref);
       const abs = join(root, rel);
       if (!existsSync(abs)) { out.push({ type: 'evidence-missing', id: d.id, ref: rel }); continue; }
-      const recorded = eh[rel];
-      if (recorded && shortHash(readFileSync(abs, 'utf8')) !== recorded) {
-        out.push({ type: 'evidence-stale', id: d.id, ref: rel });
+      // new entries are keyed by the FULL ref (range-aware); legacy entries by the bare path (whole file)
+      const recorded = eh[ref] != null ? eh[ref] : eh[rel];
+      const current = eh[ref] != null ? citedContent(abs, ref) : readFileSync(abs, 'utf8');
+      if (recorded && shortHash(current) !== recorded) {
+        out.push({ type: 'evidence-stale', id: d.id, ref: String(ref) });
       }
     }
   }
   return out;
 }
 
-/** Hash the current content of each file-like evidence ref (captured at record time). */
+/** Hash what each file-like evidence ref cites (captured at record time), keyed by the full ref. */
 export function evidenceHashes(root, evidence = []) {
   const map = {};
   for (const ref of evidence) {
     if (!isFileRef(ref)) continue;
-    const rel = filePart(ref);
-    const abs = join(root, rel);
-    try { if (existsSync(abs)) map[rel] = shortHash(readFileSync(abs, 'utf8')); } catch { /* skip */ }
+    const abs = join(root, filePart(ref));
+    try { if (existsSync(abs)) map[String(ref)] = shortHash(citedContent(abs, ref)); } catch { /* skip */ }
   }
   return map;
 }

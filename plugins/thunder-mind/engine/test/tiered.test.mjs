@@ -57,7 +57,8 @@ test('NO LOSS: domain-map lists every decision; recall reaches each one', () => 
     build(dir);
     const C = join(dir, '.claude', 'cache', 'thunder-mind');
     const map = readFileSync(join(C, 'domain-map.yaml'), 'utf8');
-    assert.equal((map.match(/id:/g) || []).length, 60, 'domain-map has ALL 60 decisions');
+    assert.equal((map.match(/^  d\d+\//gm) || []).length, 60, 'domain-map has ALL 60 decisions, one line each');
+    assert.match(map, /uniqueword0 decision/, 'a grep hit carries the title on the id line');
     // a tactical decision NOT in the constitution is still retrievable by recall
     const out = execFileSync('node', [ENGINE, 'recall', 'uniqueword42', dir], { encoding: 'utf8' });
     assert.match(out, /uniqueword42/, 'recall reaches a non-constitution decision');

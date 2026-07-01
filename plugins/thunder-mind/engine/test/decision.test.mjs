@@ -56,3 +56,23 @@ test('slug + id helpers', () => {
   assert.strictEqual(makeId('Auth', '2026-06-27', 'Tenant Isolation'), 'auth/2026-06-27-tenant-isolation');
   assert.strictEqual(idFromRel('auth/2026-06-27-x.yaml'), 'auth/2026-06-27-x');
 });
+
+test('hand-edited folded block scalar (`key: >`) parses to the real text, not ">"', () => {
+  const d = parseDecision('title: T\ndecision: >\n  Use RLS for isolation\n  everywhere.\n');
+  assert.strictEqual(d.decision, 'Use RLS for isolation everywhere.');
+});
+
+test('hand-edited literal block scalar (`key: |`) keeps line breaks', () => {
+  const d = parseDecision('note: |\n  line one\n  line two\n');
+  assert.strictEqual(d.note, 'line one\nline two');
+});
+
+test('YAML inline comment on a bare scalar is stripped (like a real parser)', () => {
+  const d = parseDecision('decision: use RLS  # important\n');
+  assert.strictEqual(d.decision, 'use RLS');
+});
+
+test('a # without leading whitespace stays part of the value', () => {
+  const d = parseDecision('evidence:\n  - "PR #245"\n');
+  assert.deepStrictEqual(d.evidence, ['PR #245']);
+});

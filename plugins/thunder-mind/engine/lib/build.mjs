@@ -113,10 +113,14 @@ export function emit(root, model) {
     domains: model.domains,
   }));
 
-  // FULL catalog — EVERY decision, one line each. The "no loss" backbone (grepable, complete).
-  writeFileSync(join(dir, 'domain-map.yaml'), dump(
-    model.decisions.map((d) => ({ id: d.id, type: d.type, status: d.status, scope: scopeOf(d), domain: d.domain, title: d.title }))
-  ));
+  // FULL catalog — EVERY decision, ONE line each (id is the key), so a single grep hit is
+  // self-sufficient: id + status + type + scope + title together. The "no loss" backbone.
+  const catalog = {};
+  for (const d of model.decisions) catalog[d.id] = `${d.status} ${d.type} ${scopeOf(d)} — ${d.title}`;
+  writeFileSync(join(dir, 'domain-map.yaml'), dump({
+    format: '<id>: "<status> <type> <scope> — <title>"',
+    decisions: catalog,
+  }));
 
   // tier-0 constitution (the only thing injected at SessionStart)
   writeFileSync(join(dir, 'brief.yaml'), dump(briefOf(model)));

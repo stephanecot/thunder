@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, resetIndex } from './lib/build.mjs';
@@ -26,8 +27,8 @@ function cmdBuild(root, force) {
   const t0 = process.hrtime.bigint();
   const r = build(root, { force });
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-  console.log(`thunder-mind: ${r.total} décision(s) (${r.parsed} parsées, ${r.reused} réutilisées, ${r.errors} erreur(s)) → ` +
-    `${r.model.N} décisions · ${r.model.domains.length} domaines · ${ms.toFixed(0)}ms`);
+  console.log(`thunder-mind: ${r.total} file(s) (${r.parsed} parsed, ${r.reused} reused, ${r.errors} error(s)) → ` +
+    `${r.model.N} decisions · ${r.model.domains.length} domains · ${ms.toFixed(0)}ms`);
 }
 
 function cmdEnsure(root) {
@@ -36,10 +37,10 @@ function cmdEnsure(root) {
   const r = build(root);
   if (r.total === 0) return;
   const c = conflicts(r.model, root);
-  console.log(`thunder-mind: ${r.model.N} décisions, ${r.model.domains.length} domaines` +
-    `${c.length ? `, ${c.length} conflit(s)/dérive(s) — /thunder-mind:thunder-mind-review` : ''}. ` +
-    `recall AVANT de décider. Tier-0 constitution ci-dessous ; un domaine → lis sa carte ` +
-    `(domains/<domain>.card.yaml) ; tout le catalogue → domain-map.yaml. Rien n'est perdu : recall couvre 100%.`);
+  console.log(`thunder-mind: ${r.model.N} decisions, ${r.model.domains.length} domains` +
+    `${c.length ? `, ${c.length} conflict(s)/drift — /thunder-mind:thunder-mind-review` : ''}. ` +
+    `recall BEFORE deciding. Tier-0 constitution below; one domain → read its card ` +
+    `(domains/<domain>.card.yaml); full catalog → domain-map.yaml. Nothing is lost: recall covers 100%.`);
   // inject ONLY the bounded tier-0 constitution (global invariants) — flat cost as the corpus grows
   try { process.stdout.write('\n' + readFileSync(join(cacheDir(root), 'brief.yaml'), 'utf8')); } catch { /* none */ }
 }
@@ -60,7 +61,6 @@ function cmdRecall(root, query, opts) {
   const { model } = build(root);
 
   // Tier-3: a fresh prior answer is relayed at ~0 cost; any decision change flips a dep hash → STALE.
-  const byId = new Map(model.decisions.map((d) => [d.id, d.id /*hash via deps below*/]));
   const srcHashOf = (id) => model.byId.has(id) ? hashOfDecision(root, id) : null;
   const hit = ledger.lookup(cacheDir(root), query, { srcHashOf, engineHash: model.engineHash });
   if (hit && hit.fresh) {
@@ -145,13 +145,19 @@ function unfence(s) {
   return (m ? m[1] : t).trim();
 }
 
+/** Default author = the local git identity (falls back to "unknown" outside a git repo). */
+function gitAuthor(root) {
+  try { return execSync('git config user.name', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || null; }
+  catch { return null; }
+}
+
 async function cmdAdd(root, { date, author, force }) {
   let d;
   try { d = JSON.parse(unfence(await readStdin())); } catch (e) { console.error('invalid JSON on stdin:', e.message); process.exit(1); }
   d.date = d.date || date || today();
   d.status = d.status || 'active';
   d.domain = d.domain || 'general';
-  d.authors = d.authors || (author ? [author] : ['unknown']);
+  d.authors = d.authors || [author || gitAuthor(root) || 'unknown'];
   for (const k of ['consequences', 'alternatives', 'tags', 'conflicts_with', 'evidence']) if (!d[k]) d[k] = [];
   d.id = makeId(d.domain, d.date, d.title || 'decision');
 
@@ -236,7 +242,7 @@ async function selftest() {
   const c = conflicts(model, demo);
   assert.ok(c.some((x) => x.type === 'conflict' || x.type === 'supersede-active'), 'a conflict/drift is flagged');
 
-  console.log('✅ selftest OK —', model.N, 'decisions,', model.domains.length, 'domaines,', c.length, 'review item(s)');
+  console.log('✅ selftest OK —', model.N, 'decisions,', model.domains.length, 'domains,', c.length, 'review item(s)');
 }
 
 const argv = process.argv.slice(2);

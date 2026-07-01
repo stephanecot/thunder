@@ -28,11 +28,11 @@ plus the committed `minddemo` corpus for the worked example.
 
 | decisions | build (ms) | corpus tok | avg recall payload tok | avg recall (ms) |
 |---:|---:|---:|---:|---:|
-| 50 | 11 | 8151 | 329 | 0.09 |
-| 500 | 26 | 81866 | 317 | 0.10 |
-| 2000 | 81 | 328462 | 318 | 0.32 |
+| 50 | 14 | 8151 | 326 | 0.05 |
+| 500 | 28 | 81866 | 314 | 0.13 |
+| 2000 | 87 | 328462 | 315 | 0.46 |
 
-The recall payload is **flat (~318 tok)** and recall stays **sub-millisecond** even at 2000 decisions —
+The recall payload is **flat (~315 tok)** and recall stays **sub-millisecond** even at 2000 decisions —
 because retrieval goes through an inverted index + an idf-weighted funnel that scores only candidates and
 enriches only the top 1–3, never the whole corpus.
 
@@ -40,9 +40,9 @@ enriches only the top 1–3, never the whole corpus.
 
 | decisions | recall tok | scan-corpus baseline tok | factor | (single-file baseline tok) |
 |---:|---:|---:|---:|---:|
-| 50 | 329 | 8151 | **~25×** | 161 |
-| 500 | 317 | 81866 | **~258×** | 158 |
-| 2000 | 318 | 328462 | **~1033×** | 159 |
+| 50 | 326 | 8151 | **~25×** | 161 |
+| 500 | 314 | 81866 | **~261×** | 158 |
+| 2000 | 315 | 328462 | **~1043×** | 159 |
 
 *(8 representative queries averaged per size.)* The more a project decides, the more an index is worth:
 at 2000 decisions, one `recall` costs **~1000× fewer tokens** than scanning the decisions to find the one
@@ -94,7 +94,7 @@ is never returned after the underlying decision changes. Debug mode (`.thunder/m
 ## Honest nuances
 
 - **For a single, already-known decision the token gain is neutral or slightly negative** — the enriched
-  card (~318 tok) is comparable to the one decision file (~159 tok). thunder-mind's value is **finding**
+  card (~315 tok) is comparable to the one decision file (~159 tok). thunder-mind's value is **finding**
   the right decision among many and **preventing divergence**, not compressing one file you already know.
 - The headline gain is the **read-to-search** factor, which only materializes once the project has
   accumulated decisions — it is small on a 5-decision repo and large on a 2000-decision one.
@@ -122,7 +122,7 @@ The decision that doesn't get *re-litigated* or *contradicted* is the main payof
 
 | Query type | thunder-mind benefit |
 |---|---|
-| "What did we decide about X?" | One `recall`, ~318 tok inline, vs scanning the corpus (up to ~1000×). |
+| "What did we decide about X?" | One `recall`, ~315 tok inline, vs scanning the corpus (up to ~1000×). |
 | "Should we do X / which lib/pattern?" | Reuse the existing decision instead of inventing a divergent one. |
 | "Is our decision log consistent?" | `conflicts` / `review` flag contradictions and drift. |
 | Single known decision, small repo | Little/no token gain — value is alignment, not compression. |

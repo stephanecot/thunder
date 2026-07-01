@@ -37,7 +37,8 @@ function unquote(s) {
   if (t === '') return '';
   if (t === 'null') return null;
   if (t[0] === '"') { try { return JSON.parse(t); } catch { return t.slice(1, -1); } }
-  return t;
+  // bare scalar: a ` #` starts a YAML comment (hand-edited files) — strip it, like a real YAML parser
+  return t.replace(/\s+#.*$/, '');
 }
 
 // split on `sep` at top level (ignore separators inside JSON strings / [] / {})
@@ -99,6 +100,16 @@ export function parseDecision(text) {
     const m = line.match(/^([A-Za-z_]\w*):\s?(.*)$/);
     if (!m) continue;
     const key = m[1]; const rest = m[2];
+    // block scalar (`key: >` / `key: |`) — legal YAML a human hand-edit will use; the emitter never
+    // produces it, but silently storing ">" as the value corrupted the index, so parse it properly.
+    const bs = rest.match(/^([>|])[+-]?\s*(#.*)?$/);
+    if (bs) {
+      const block = [];
+      while (i + 1 < lines.length && (lines[i + 1].startsWith('  ') || !lines[i + 1].trim())) block.push(lines[++i]);
+      const body = block.map((b) => b.replace(/^  /, ''));
+      d[key] = (bs[1] === '>' ? body.map((b) => b.trim()).filter(Boolean).join(' ') : body.join('\n')).trimEnd();
+      continue;
+    }
     if (rest === '') {
       const block = [];
       while (i + 1 < lines.length && lines[i + 1].startsWith('  ')) block.push(lines[++i]);
