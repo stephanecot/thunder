@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -97,5 +98,100 @@ test('#1 feature granularity: features/<x> become separate contexts', () => {
     const { model } = build(dir);
     const feats = model.contexts.map((c) => c.feature).sort();
     assert.ok(feats.includes('features.chat') && feats.includes('features.documents'), `got ${feats}`);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('R3.1 httpResource config object: verb from method:, url via this.<field> indirection', () => {
+  const src = `
+@Injectable({ providedIn: 'root' })
+export class CategoryCreateService {
+  private readonly apiUrl = \`\${environment.apiUrl}/categories\`;
+  private resource = httpResource<Category>(() => {
+    const data = this.body();
+    if (!data) return undefined;
+    return { url: this.apiUrl, method: 'POST', body: data };
+  });
+}
+`;
+  const t = parseFile(src, 'category-create.service.ts').types[0];
+  assert.deepStrictEqual(t.http, [{ verb: 'POST', url: '{apiUrl}/categories' }], 'mutation is no longer {GET, null}');
+});
+
+test('R3.2 httpResource: template url embedding this.<field> resolves field then normalizes', () => {
+  const src = `
+@Injectable({ providedIn: 'root' })
+export class CategoryDeleteService {
+  private readonly apiUrl = \`\${environment.apiUrl}/categories\`;
+  private resource = httpResource<void>(() => {
+    const id = this.id();
+    if (!id) return undefined;
+    return { url: \`\${this.apiUrl}/\${id}\`, method: 'DELETE' };
+  });
+}
+`;
+  const t = parseFile(src, 'category-delete.service.ts').types[0];
+  assert.deepStrictEqual(t.http, [{ verb: 'DELETE', url: '{apiUrl}/categories/{id}' }]);
+});
+
+test('R3 acceptance: KnowledgeService mixes GET list + POST upload + DELETE', () => {
+  const src = `
+@Injectable({ providedIn: 'root' })
+export class KnowledgeService {
+  private readonly apiUrl = \`\${environment.apiUrl}/documents\`;
+  list = httpResource<Doc[]>(() => ({ url: this.apiUrl, params: { q: this.q() } }));
+  upload = httpResource<Doc>(() => { const f = this.file(); if (!f) return undefined; return { url: this.apiUrl, method: 'POST', body: f }; });
+  remove = httpResource<void>(() => { const id = this.id(); if (!id) return undefined; return { url: \`\${this.apiUrl}/\${id}\`, method: 'DELETE' }; });
+}
+`;
+  const t = parseFile(src, 'knowledge.service.ts').types[0];
+  assert.deepStrictEqual(t.http, [
+    { verb: 'GET', url: '{apiUrl}/documents' },
+    { verb: 'POST', url: '{apiUrl}/documents' },
+    { verb: 'DELETE', url: '{apiUrl}/documents/{id}' },
+  ]);
+});
+
+test('R3 non-regression: literal-URL GET keeps its template placeholders; bare unresolvable field stays null', () => {
+  const src = `
+@Injectable({ providedIn: 'root' })
+export class I18nService {
+  private http = inject(HttpClient);
+  load(lang) { return this.http.get(\`/assets/i18n/\${lang}.json\`); }
+  other = httpResource<X>(() => this.unknownField);
+}
+`;
+  const t = parseFile(src, 'i18n.service.ts').types[0];
+  assert.deepStrictEqual(t.http[0], { verb: 'GET', url: '/assets/i18n/{lang}.json' });
+  assert.deepStrictEqual(t.http[1], { verb: 'GET', url: null }, 'unresolvable field → null, never invented');
+});
+
+test('R4 parser: standalone imports:[…] of @Component becomes type.uses (declared usage)', () => {
+  const src = `
+@Component({
+  selector: 'app-tag-admin',
+  standalone: true,
+  imports: [CommonModule, LoadingSpinnerComponent, FormsModule],
+  templateUrl: './tag-admin.html',
+})
+export class TagAdmin {}
+`;
+  const t = parseFile(src, 'tag-admin.ts').types[0];
+  assert.deepStrictEqual(t.uses, ['CommonModule', 'LoadingSpinnerComponent', 'FormsModule']);
+});
+
+test('R4 acceptance: sym refs <PresentationComponent> lists its importers', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'thunder-ng-refs-'));
+  try {
+    writeFileSync(join(dir, 'angular.json'), JSON.stringify({ projects: { app: { sourceRoot: 'src' } } }));
+    mkdirSync(join(dir, 'src/app/shared'), { recursive: true });
+    mkdirSync(join(dir, 'src/app/features/tags'), { recursive: true });
+    writeFileSync(join(dir, 'src/app/shared/loading-spinner.ts'),
+      `@Component({ selector: 'app-loading-spinner', standalone: true })\nexport class LoadingSpinnerComponent {}\n`);
+    writeFileSync(join(dir, 'src/app/features/tags/tag-admin.ts'),
+      `@Component({ selector: 'app-tag-admin', standalone: true, imports: [CommonModule, LoadingSpinnerComponent] })\nexport class TagAdmin {}\n`);
+    build(dir);
+    const out = execFileSync(process.execPath,
+      [join(import.meta.dirname, '..', 'thunder.mjs'), 'sym', 'refs', 'LoadingSpinnerComponent', dir]).toString();
+    assert.match(out, /TagAdmin\b.*\(imports LoadingSpinnerComponent\)/, `got: ${out}`);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

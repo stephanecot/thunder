@@ -264,7 +264,10 @@ function cmdSym(root, sub, name) {
         for (const m of (t.methods || [])) if (m.name === name) hits.push(`method ${t.name}.${m.name}${m.sig}  ${fact.file}:${m.line}`);
       } else {
         const hay = [t.ext, t.impls, ...(t.ctorDeps || []), ...(t.methods || []).map((m) => m.sig), ...(t.props || []).map((p) => p.type)].filter(Boolean);
-        if (t.name !== name && hay.some((s) => new RegExp(`\\b${name}\\b`).test(s))) hits.push(`${t.name}  ${fact.file}:${t.line}`);
+        const inSig = t.name !== name && hay.some((s) => new RegExp(`\\b${name}\\b`).test(s));
+        // standalone `imports: [X]` usage (R4) — a declared component→component reference
+        const inUses = t.name !== name && (t.uses || []).includes(name);
+        if (inSig || inUses) hits.push(`${t.name}  ${fact.file}:${t.line}${!inSig && inUses ? `  (imports ${name})` : ''}`);
       }
     }
     // functional guards / interceptors / resolvers are symbols too

@@ -92,7 +92,10 @@ function detectMember(rest, restRaw) {
   if (pm) {
     const type = (pm[2] || '').trim();
     const inj = restRaw.match(/\binject\s*\(\s*([A-Za-z_]\w*)/);
-    return { kind: 'prop', name: pm[1], type, inject: inj ? inj[1] : null };
+    // string initializer (`apiUrl = \`${environment.apiUrl}/categories\``) — feeds this.<field> URL
+    // resolution in the HTTP facet (R3.2)
+    const si = restRaw.match(/=\s*(`(?:[^`\\]|\\.)*`|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*;?\s*$/);
+    return { kind: 'prop', name: pm[1], type, inject: inj ? inj[1] : null, init: si ? si[1].slice(1, -1) : null };
   }
   return null;
 }
@@ -220,6 +223,14 @@ export function parseFile(raw, relPath) {
         ext: ext ? ext[1].trim() : null, impls: impl ? impl[1].trim() : null,
         methods: [], props: [], ctorDeps: [],
       };
+      // standalone `imports: [X, Y]` of @Component/@Directive → declared component→component usage
+      // (R4: without this, `sym refs <PresentationComponent>` finds nothing — DI edges don't cover it)
+      const compDec = type.decorators.find((d) => /^@(Component|Directive)\b/.test(d));
+      const im = compDec && compDec.match(/\bimports\s*:\s*\[([\s\S]*?)\]/);
+      if (im) {
+        const uses = splitTopLevel(im[1]).map((s) => s.trim()).filter((s) => /^[A-Z]\w*$/.test(s));
+        if (uses.length) type.uses = uses;
+      }
       file.types.push(type);
       stack.push({ type, bodyDepth: depth + 1 });
       pending = [];
@@ -251,7 +262,7 @@ export function parseFile(raw, relPath) {
         if (member) {
           const decs = [...pending, ...decorators]; // decorators may be inline (e.g. @Input() title)
           if (member.kind === 'prop') {
-            top.props.push({ name: member.name, type: member.type, decorators: decs, inject: member.inject, line: li + 1 });
+            top.props.push({ name: member.name, type: member.type, decorators: decs, inject: member.inject, line: li + 1, ...(member.init != null ? { init: member.init } : {}) });
             if (member.inject && isInjectable(member.inject)) top.ctorDeps.push(baseType(member.inject));
           } else {
             top.methods.push({ name: member.name, sig: member.sig, decorators: decs, line: li + 1 });
@@ -261,20 +272,45 @@ export function parseFile(raw, relPath) {
       }
     }
 
-    // #4 HTTP facet: capture http.<verb>(…) / httpResource(…) inside a service method body and attach
-    // it to the enclosing class (its backend contract). Detect on the cleaned line, URL from the raw.
+    // #4 HTTP facet: capture http.<verb>(…) / httpResource(…) inside a service body and attach it to
+    // the enclosing class (its backend contract). The call's argument span is captured ACROSS LINES so
+    // config-object resources — `httpResource(() => ({ url: this.apiUrl, method: 'POST', body }))` —
+    // yield the REAL verb (from `method:`, R3.1) and a URL resolved through `this.<field>` string
+    // initializers (R3.2); a mutation no longer indexes as `{verb: GET, url: null}`.
     if (stack.length) {
       const cls = stack[stack.length - 1].type;
       // Receivers that hold an HttpClient: the conventional `http`/`httpClient`, plus any field typed
       // or `inject(HttpClient)`-ed under another name (`private api = inject(HttpClient)`).
       const httpFields = ['http', 'httpClient', ...cls.props.filter((p) => p.inject === 'HttpClient' || baseType(p.type) === 'HttpClient').map((p) => p.name)];
       const recv = `(?:this\\s*\\.\\s*)?(?:${[...new Set(httpFields)].map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
-      const hv = cl.match(new RegExp(`\\b${recv}\\s*\\.\\s*(get|post|put|delete|patch)\\b`, 'i'));
-      // httpResource(...) / httpResource<T>(...) is a reactive GET resource (unless an explicit method).
-      if (hv || /\bhttpResource\s*(?:<[^>]*>)?\s*\(/.test(cl)) {
-        const verb = (hv ? hv[1] : 'get').toUpperCase();
-        const url = normalizeUrl((rl.match(/[`'"]([^`'"]*)[`'"]/) || [])[1] || null);
-        (cls.http ||= []).push({ verb, url });
+      const hv = new RegExp(`\\b${recv}\\s*\\.\\s*(get|post|put|delete|patch)\\s*(?:<[^>]*>)?\\s*\\(`, 'i').exec(cl);
+      const hr = hv ? null : /\bhttpResource\s*(?:<[^>]*>)?\s*\(/.exec(cl);
+      const call = hv || hr;
+      if (call) {
+        const parenCol = call.index + call[0].length - 1;
+        const span = captureParensSpan(cleanLines, li, parenCol);
+        const args = sliceRaw(rawLines, li, parenCol + 1, span.endLine, span.endCol);
+        const LIT = '`(?:[^`\\\\]|\\\\.)*`|\'(?:[^\'\\\\]|\\\\.)*\'|"(?:[^"\\\\]|\\\\.)*"';
+        const fieldVal = (n) => (cls.props.find((p) => p.name === n && p.init != null) || {}).init ?? null;
+        const substFields = (s) => s.replace(/\$\{\s*this\s*\.\s*(\w+)\s*\}/g, (_, f2) => fieldVal(f2) ?? `\${${f2}}`);
+        const resolve = (expr) => {
+          if (!expr) return null;
+          const e = expr.trim();
+          if (new RegExp(`^(?:${LIT})$`).test(e)) return normalizeUrl(substFields(e.slice(1, -1)));
+          const tf = e.match(/^this\s*\.\s*(\w+)$/); // bare field ref: resolvable or stay null (never guess)
+          if (tf) { const v = fieldVal(tf[1]); return v != null ? normalizeUrl(substFields(v)) : null; }
+          return null;
+        };
+        // URL: an explicit `url:` config key wins; else the call's leading argument (past a `() =>`)
+        const um = args.match(new RegExp(`\\burl\\s*:\\s*(${LIT}|this\\s*\\.\\s*\\w+)`));
+        let urlExpr = um ? um[1] : null;
+        if (!urlExpr) {
+          const lead = args.trim().replace(/^\(\s*\w*\s*\)\s*=>\s*/, '');
+          urlExpr = (lead.match(new RegExp(`^(${LIT}|this\\s*\\.\\s*\\w+)`)) || [])[1] || null;
+        }
+        const mv = hv ? null : args.match(/\bmethod\s*:\s*['"`](\w+)['"`]/);
+        const verb = (hv ? hv[1] : (mv ? mv[1] : 'get')).toUpperCase();
+        (cls.http ||= []).push({ verb, url: resolve(urlExpr) });
       }
     }
 

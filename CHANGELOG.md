@@ -11,7 +11,7 @@ the version a change applies to is noted inline. Per-plugin measured results liv
 | Plugin | Version |
 |---|---|
 | `thunder-java` | 0.1.13 |
-| `thunder-angular` | 0.1.14 |
+| `thunder-angular` | 0.1.15 |
 | `thunder-python` | 0.1.8 |
 | `thunder-node` | 0.0.6 |
 | `thunder-react` | 0.0.5 |
@@ -43,6 +43,17 @@ the version a change applies to is noted inline. Per-plugin measured results liv
   `git config user.name`, and CLI/session messages are English (the index language).
 
 ### Fixed
+- **`thunder-angular`** `0.1.15` — **HTTP facet correctness (R3) + component references (R4)**:
+  - `httpResource(...)` calls are parsed over their FULL multi-line argument span: the verb is read from
+    the config object's `method:` (default GET) and the URL is resolved through class-field string
+    initializers (`url: this.apiUrl` with `apiUrl = ` `` `${environment.apiUrl}/categories` `` → 
+    `{apiUrl}/categories`, and `` `${this.apiUrl}/${id}` `` → `{apiUrl}/categories/{id}`). Mutation
+    services no longer index as `{verb: GET, url: null}`; an unresolvable field stays `null`, never
+    invented. Direct `http.<verb>(...)` calls gain the same span/field resolution.
+  - the parser extracts a standalone `@Component`/`@Directive` `imports: [...]` array into `type.uses`,
+    and `sym refs <Component>` now lists importers (annotated `(imports X)`) — presentation components
+    (spinner, page-header…) were previously invisible to reference lookup since DI edges don't cover
+    template composition.
 - **`thunder-mind`** `0.2.1`:
   - **`capture-hint` hook is now opt-in and precise** — it only speaks in projects with `.thunder/mind/`
     (it used to inject reminders into every repo of every plugin user) and the French cues require a
