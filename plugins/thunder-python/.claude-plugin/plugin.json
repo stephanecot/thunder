@@ -1,7 +1,7 @@
 {
   "name": "thunder-python",
   "displayName": "Thunder Python ⚡",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Token-minimal comprehension, exploration and navigation of Python codebases (FastAPI / Flask / Django / plain). Pure-Node, zero-dependency engine that builds a hierarchical YAML index (routes, models, classes, DI, framework-aware + inferred functional layer), kept fresh by hooks.",
   "author": { "name": "Stéphane Cottin", "email": "stephanecot@gmail.com" },
   "keywords": ["python", "fastapi", "flask", "django", "codebase", "index", "token-efficient"],

@@ -1,7 +1,7 @@
 {
   "name": "thunder-java",
   "displayName": "Thunder Java ⚡",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Token-minimal comprehension, exploration and navigation of Java/Spring Boot codebases. Pure-Node, zero-dependency engine that builds a hierarchical YAML index (technical + inferred functional layer), kept fresh by hooks.",
   "author": { "name": "Stéphane Cottin", "email": "stephanecot@gmail.com" },
   "keywords": ["java", "spring-boot", "codebase", "index", "navigation", "token-efficient"],

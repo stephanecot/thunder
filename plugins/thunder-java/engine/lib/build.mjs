@@ -6,7 +6,7 @@ import { parseFile } from './parser.mjs';
 import { derive } from './derive.mjs';
 import { emit } from './emit.mjs';
 import { shortHash } from './hash.mjs';
-import { readCache, writeCache, readManifest, writeManifest, drainDirty } from './cache.mjs';
+import { readCache, writeCache, readManifest, writeManifest, drainDirty, sweepLegacyCache } from './cache.mjs';
 import { loadFunctional } from './functional.mjs';
 
 const SKIP_DIRS = new Set(['target', 'build', 'out', 'bin', '.git', 'node_modules', '.idea', '.claude', '.gradle']);
@@ -46,6 +46,7 @@ function moduleOf(abs, modules, root) {
 /** Full incremental pipeline: WALK → PARSE (changed only) → DERIVE → EMIT. Returns the model.
  *  opts.force (or an engine-code change) discards the per-file cache and reparses everything. */
 export function build(root, opts = {}) {
+  sweepLegacyCache(root);
   const files = walkJava(root);
   const modules = findModules(root);
   const manifest = readManifest(root);

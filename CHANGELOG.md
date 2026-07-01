@@ -10,11 +10,11 @@ the version a change applies to is noted inline. Per-plugin measured results liv
 
 | Plugin | Version |
 |---|---|
-| `thunder-java` | 0.1.13 |
-| `thunder-angular` | 0.1.15 |
-| `thunder-python` | 0.1.8 |
-| `thunder-node` | 0.0.6 |
-| `thunder-react` | 0.0.5 |
+| `thunder-java` | 0.1.14 |
+| `thunder-angular` | 0.1.16 |
+| `thunder-python` | 0.1.9 |
+| `thunder-node` | 0.0.7 |
+| `thunder-react` | 0.0.6 |
 | `thunder-mind` | 0.2.1 |
 
 ## [Unreleased]
@@ -43,6 +43,13 @@ the version a change applies to is noted inline. Per-plugin measured results liv
   `git config user.name`, and CLI/session messages are English (the index language).
 
 ### Fixed
+- **All framework plugins** (`thunder-java` `0.1.14`, `thunder-angular` `0.1.16`, `thunder-python`
+  `0.1.9`, `thunder-node` `0.0.7`, `thunder-react` `0.0.6`) — **legacy-cache migration sweep**: projects
+  indexed before the relocation to `.thunder/<lang>/` kept a stale derived index under
+  `.claude/cache/thunder-<lang>/` that masqueraded as the live one (this produced a false "R3 still
+  broken" report from old `{verb: GET, url: null}` facets). `build` now removes that pre-relocation
+  directory (for java also the older `.claude/cache/thunder/`). thunder-mind is untouched — 
+  `.claude/cache/thunder-mind/` is its CURRENT derived cache, not a leftover.
 - **`thunder-angular`** `0.1.15` — **HTTP facet correctness (R3) + component references (R4)**:
   - `httpResource(...)` calls are parsed over their FULL multi-line argument span: the verb is read from
     the config object's `method:` (default GET) and the URL is resolved through class-field string

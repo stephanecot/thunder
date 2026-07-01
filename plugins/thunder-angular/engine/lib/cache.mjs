@@ -1,7 +1,16 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const cacheDir = (root) => join(root, '.thunder', 'angular');
+
+/** One-time migration: drop the pre-relocation derived index (.claude/cache/thunder-angular/).
+ * Projects indexed before the move to .thunder/angular/ keep a stale copy there that masquerades
+ * as the live index — remove it on every build. */
+export function sweepLegacyCache(root) {
+  for (const name of ['thunder-angular']) {
+    try { rmSync(join(root, '.claude', 'cache', name), { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+}
 // Committed opt-in marker: thunder only indexes a project once this exists (written by `init`).
 export const projectConfig = (root) => join(cacheDir(root), 'config.yaml');
 export const isInitialized = (root) => existsSync(projectConfig(root));

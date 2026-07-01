@@ -1,7 +1,7 @@
 {
   "name": "thunder-react",
   "displayName": "Thunder React ⚡",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Token-minimal comprehension, exploration and navigation of React.js codebases. Pure-Node, zero-dependency engine that builds a hierarchical YAML index (technical: components, hooks, React Router routes, contexts/stores, prop & dependency graph + inferred functional layer), kept fresh by hooks.",
   "author": { "name": "Stéphane Cottin", "email": "stephanecot@gmail.com" },
   "keywords": ["react", "reactjs", "jsx", "tsx", "typescript", "javascript", "react-router", "codebase", "index", "token-efficient"],

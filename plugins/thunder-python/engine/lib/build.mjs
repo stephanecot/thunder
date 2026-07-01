@@ -6,7 +6,7 @@ import { parseFile } from './parser.mjs';
 import { derive } from './derive.mjs';
 import { emit } from './emit.mjs';
 import { shortHash } from './hash.mjs';
-import { readCache, writeCache, readManifest, writeManifest, drainDirty } from './cache.mjs';
+import { readCache, writeCache, readManifest, writeManifest, drainDirty, sweepLegacyCache } from './cache.mjs';
 import { loadFunctional } from './functional.mjs';
 
 const LIB = dirname(fileURLToPath(import.meta.url));
@@ -25,6 +25,7 @@ function locate(rel, srcRoot, root) {
 }
 
 export function build(root, opts = {}) {
+  sweepLegacyCache(root);
   const files = walkPy(root);
   const srcRoot = hasSrc(root) ? 'src' : '';
   const manifest = readManifest(root);

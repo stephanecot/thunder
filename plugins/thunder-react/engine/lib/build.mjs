@@ -6,7 +6,7 @@ import { parseFile } from './parser.mjs';
 import { derive } from './derive.mjs';
 import { emit } from './emit.mjs';
 import { shortHash } from './hash.mjs';
-import { readCache, writeCache, readManifest, writeManifest, drainDirty } from './cache.mjs';
+import { readCache, writeCache, readManifest, writeManifest, drainDirty, sweepLegacyCache } from './cache.mjs';
 import { loadFunctional } from './functional.mjs';
 
 // Fingerprint of the parse-affecting engine code — invalidates cache.ndjson on an engine change.
@@ -42,6 +42,7 @@ function locate(rel, projects) {
 
 /** Full incremental pipeline: WALK → PARSE (changed only) → DERIVE → EMIT. Returns the model. */
 export function build(root, opts = {}) {
+  sweepLegacyCache(root);
   const files = walkTs(root);
   const projects = projectsOf(root);
   const manifest = readManifest(root);
