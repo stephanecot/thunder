@@ -67,6 +67,7 @@ test('_index points to cards; endpoints.yaml carries req/resp', () => {
     const idx = readFileSync(join(base, 'modules/user/_index.yaml'), 'utf8');
     assert.ok(/card: modules\/user\/com\.demo\.user\.card\.yaml/.test(idx), '_index card pointer');
     const eps = readFileSync(join(base, 'endpoints.yaml'), 'utf8');
-    assert.ok(eps.includes('req: UserDto') && eps.includes('resp: User'), 'endpoints enriched');
+    assert.ok(eps.includes('UserDto -> User'), 'endpoints enriched with req/resp on one line');
+    assert.ok(/POST \/users\s+UserController\.create/.test(eps), 'one grep-friendly line per endpoint');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

@@ -40,5 +40,8 @@ test('detail shard exists (retro-compat); _index points to card; routes.yaml pre
     const idx = readFileSync(join(base, 'projects/shop/_index.yaml'), 'utf8');
     assert.ok(/card: projects\/shop\/shop\.users\.card\.yaml/.test(idx), '_index card pointer');
     assert.ok(readFileSync(join(base, 'project-brief.yaml'), 'utf8').includes('frameworks:'), 'brief frameworks');
+    const rts = readFileSync(join(base, 'routes.yaml'), 'utf8');
+    assert.ok(rts.includes('format:'), 'routes.yaml documents its line format');
+    assert.ok(/POST \/users\s+create\s+\(shop\/shop\.users\)/.test(rts), 'one grep-friendly line per route');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

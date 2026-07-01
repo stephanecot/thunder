@@ -113,12 +113,18 @@ export function emit(root, model, functional = {}) {
     if (writeIfChanged(join(dir, 'projects', name, '_index.yaml'), dump(modIndex))) changed++;
   }
 
-  // global route table (slim — flow lives in shards)
+  // global route table — ONE grep-friendly line per route (was 4-5 lines each; flow lives in shards)
+  const rtLine = (r) => `${r.path || '/'} → ${r.target || ''}`.trimEnd() + `  ${r.kind}  (${r.ctx})`;
   if (writeIfChanged(join(dir, 'routes.yaml'),
-    dump({ routes: model.routes.map((r) => ({ path: r.path, target: r.target, kind: r.kind, ctx: r.ctx })) }))) changed++;
+    dump({ format: 'path → Target  kind  (context)', routes: model.routes.map(rtLine) }))) changed++;
 
-  // grepable capability map
-  const caps = model.contexts.map((c) => ({ id: c.id, purpose: functional[c.id]?.purpose || '', capabilities: functional[c.id]?.capabilities || [] }));
+  // grepable capability map — ONE line per context (id + purpose + capabilities together),
+  // so a single grep hit is self-sufficient (id-less multi-line hits were useless)
+  const caps = {};
+  for (const c of model.contexts) {
+    const f = functional[c.id];
+    caps[c.id] = `${f?.purpose || ''}${f?.capabilities?.length ? ` — ${f.capabilities.join('; ')}` : ''}`;
+  }
   if (writeIfChanged(join(dir, 'capability-map.yaml'), dump({ contexts: caps }))) changed++;
 
   // per-context shards

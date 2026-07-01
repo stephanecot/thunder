@@ -29,7 +29,7 @@ Java/Spring Boot par IA, optimisé **tokens-minimum**.
 La couche technique inclut les **règles métier déductibles** (`@Min`, `@NotNull`, `unique`, `@Valid`)
 et les **flux use-case dérivés** du graphe d'appels/beans (déterministes — le modèle ne fait que les nommer).
 La couche fonctionnelle riche ajoute : `purpose`, `capabilities`, `business_rules` (avec citation de source),
-`intent` d'endpoint, `glossary`, et le regroupement en bounded-contexts.
+`intent` d'endpoint, et le regroupement en bounded-contexts.
 
 Les deux couches vivent dans le **même YAML émis**, fusionnées. Champs inférés marqués `inferred`
 (auditables). Péremption : voir *Staleness* plus bas.
@@ -140,8 +140,8 @@ de fichiers ; scopable aux modules affectés si jamais nécessaire.
   affiche **estimation + demande confirmation** sous le seuil configuré. **Jamais déclenchée par un hook.**
 - **Parallèle plafonnée** : un `cartographer` par contexte, cap concurrent (`max_parallel_cartographers`).
 - **Ancrée (anti-hallucination)** : evidence pack obligatoire (signatures + corps ciblés : validations,
-  contrôleurs, config). Flux **dérivés techniquement**, jamais inventés. Chaque règle **cite sa source** ;
-  le moteur vérifie que la ligne citée existe → sinon `confidence: low`.
+  contrôleurs, config). Flux **dérivés techniquement**, jamais inventés. Chaque règle **cite sa source**
+  (une règle sans citation est abandonnée, pas inventée).
 
 ## Staleness (péremption)
 

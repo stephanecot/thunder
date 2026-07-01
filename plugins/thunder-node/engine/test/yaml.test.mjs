@@ -53,3 +53,16 @@ test('empty array and object', () => {
 test('array of scalars compact', () => {
   assert.strictEqual(dump({ tags: ['x', 'y'] }).trim(), 'tags: [x, y]');
 });
+
+test('non-flowable list item hoists its first key onto the dash line (no orphan dash)', () => {
+  const long = 'x'.repeat(120); // forces block style (> FLOW_MAX)
+  const out = dump({ items: [{ a: long, b: 2 }] });
+  assert.ok(!/^\s*-$/m.test(out), 'no dash alone on its line');
+  assert.ok(new RegExp(`- a: ${long}\\n    b: 2`).test(out), 'first key on the dash, siblings aligned');
+});
+
+test('hoisted item whose first value is itself a block stays valid', () => {
+  const out = dump({ items: [{ deep: [{ a: 'y'.repeat(120) }], b: 2 }] });
+  assert.ok(out.includes('- deep:'), 'first key hoisted even when its value is a block');
+  assert.ok(!/^\s*-$/m.test(out), 'no orphan dash');
+});

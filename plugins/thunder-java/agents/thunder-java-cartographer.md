@@ -21,8 +21,7 @@ order**, where each element is the Mode-A object below **plus its `id`**:
 ```json
 [
   { "id": "<the context id, copied verbatim>", "name": "...", "purpose": "...", "capabilities": ["..."],
-    "business_rules": [{"rule": "...", "src": "File.java:LINE"}], "intents": {"Controller.method": "..."},
-    "glossary": [{"term": "...", "def": "..."}], "confidence": "high | medium | low" }
+    "business_rules": [{"rule": "...", "src": "File.java:LINE"}], "intents": {"Controller.method": "..."} }
 ]
 ```
 
@@ -44,9 +43,7 @@ business-logic classes). Return EXACTLY:
   "business_rules": [
     {"rule": "A real invariant/constraint", "src": "File.java:LINE or the annotation proving it"}
   ],
-  "intents": { "Controller.method": "What this endpoint accomplishes for a user" },
-  "glossary": [ {"term": "Domain term", "def": "Concise definition"} ],
-  "confidence": "high | medium | low"
+  "intents": { "Controller.method": "What this endpoint accomplishes for a user" }
 }
 ```
 
@@ -55,7 +52,8 @@ business-logic classes). Return EXACTLY:
    `@Min(18)`, `@Column(unique=true)`, or a body check with its file:line). No citation → drop the rule.
 2. **Do NOT invent flows.** Each endpoint's `flow` is already derived and given — you only NAME intents.
 3. Stay at **business altitude** (what/why), not code altitude (how).
-4. Set `confidence: "low"` when sources are thin or ambiguous.
+4. When sources are thin or ambiguous, keep `purpose` conservative and skip uncertain rules
+   rather than inventing.
 
 ## Mode B — module rollup (payload has a `contexts` field, no `sources`)
 

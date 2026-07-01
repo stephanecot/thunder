@@ -46,5 +46,8 @@ test('project-brief.yaml is emitted with arch, projects and routes', () => {
     assert.ok(/arch:/.test(brief), 'arch style');
     assert.ok(/projects:/.test(brief), 'projects');
     assert.ok(brief.includes('users → UserListComponent'), 'route listed in brief');
+    const rts = readFileSync(join(dir, '.thunder', 'angular', 'routes.yaml'), 'utf8');
+    assert.ok(rts.startsWith('format:'), 'routes.yaml carries a format header');
+    assert.ok(/users → UserListComponent\s+component\s+\(shop\/app\)/.test(rts), 'one grep-friendly line per route');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

@@ -45,7 +45,7 @@ The functional pass must scale to **hundreds of contexts** cheaply. Two rules:
    **thunder-react-cartographer** (Task, `subagent_type: "thunder-react-cartographer"`), passing only the ids + paths of that group:
    `{"contexts":[{"id":"…","path":"/…/evidence/….json"}, …]}`. Run up to **~4 groups in parallel**
    (several Task calls in one message). Each returns a **JSON array** of `{id, name, purpose, capabilities,
-   business_rules, intents, glossary, confidence}` (one per context, id echoed).
+   business_rules, intents}` (one per context, id echoed).
 5. **Persist the batch in one call** — concatenate every array the cartographer returned into a single JSON
    array, write it to a temp file, then `node "$ENG" set-functional-batch "$ROOT" < /tmp/thunder-func.json`
    → `{set, failed}` (re-emits shards once). If a group returned non-JSON, retry it once at half size; drop

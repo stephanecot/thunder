@@ -135,16 +135,20 @@ export function emit(root, model, functional = {}) {
     if (writeIfChanged(join(dir, 'modules', name, '_index.yaml'), dump(modIndex))) changed++;
   }
 
-  // grepable capability map (one line per context, for cheap discovery)
-  const caps = model.contexts.map((c) => {
+  // grepable capability map — ONE line per context (id + purpose + capabilities together),
+  // so a single grep hit is self-sufficient (id-less multi-line hits were useless)
+  const caps = {};
+  for (const c of model.contexts) {
     const f = functional[c.id];
-    return { id: c.id, purpose: f?.purpose || '', capabilities: f?.capabilities || [] };
-  });
+    caps[c.id] = `${f?.purpose || ''}${f?.capabilities?.length ? ` — ${f.capabilities.join('; ')}` : ''}`;
+  }
   if (writeIfChanged(join(dir, 'capability-map.yaml'), dump({ contexts: caps }))) changed++;
 
-  // global endpoint table — enriched so "endpoint" questions answer without opening a shard
+  // global endpoint table — ONE grep-friendly line per endpoint (was 6-7 lines each)
+  const epLine = (e) => `${e.verb} ${e.path}  ${e.fn}  ${e.req ? e.req + ' ' : ''}${e.resp ? '-> ' + e.resp : ''}`
+    .trimEnd() + `  (${e.ctx})`;
   if (writeIfChanged(join(dir, 'endpoints.yaml'),
-    dump({ endpoints: model.endpoints.map((e) => ({ verb: e.verb, path: e.path, fn: e.fn, ...(e.req ? { req: e.req } : {}), ...(e.resp ? { resp: e.resp } : {}), ctx: e.ctx })) }))) changed++;
+    dump({ format: 'VERB path  Controller.fn  [ReqType] -> RespType  (context)', endpoints: model.endpoints.map(epLine) }))) changed++;
 
   // per-context shards (merge functional layer if present)
   const wantedShards = new Set();

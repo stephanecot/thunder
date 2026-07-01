@@ -17,8 +17,7 @@ with **one object per input context, in the same order**, each being the Mode-A 
 
 ```json
 [ { "id": "<context id, verbatim>", "name": "...", "purpose": "...", "capabilities": ["..."],
-    "business_rules": [{"rule": "...", "src": "File:LINE"}], "intents": {"...": "..."},
-    "glossary": [{"term": "...", "def": "..."}], "confidence": "high | medium | low" } ]
+    "business_rules": [{"rule": "...", "src": "File:LINE"}], "intents": {"...": "..."} } ]
 ```
 
 - **Always echo each pack's `id`** so the engine can match results — mandatory.
@@ -39,9 +38,7 @@ The pack describes one Python package context: `id`, `project`, `package`, `fram
   "business_rules": [
     {"rule": "A real validation/invariant", "src": "file.py:LINE or the symbol proving it"}
   ],
-  "intents": { "route-path": "What this endpoint accomplishes for a user" },
-  "glossary": [ {"term": "Domain term", "def": "Concise definition"} ],
-  "confidence": "high | medium | low"
+  "intents": { "route-path": "What this endpoint accomplishes for a user" }
 }
 ```
 
@@ -50,7 +47,8 @@ The pack describes one Python package context: `id`, `project`, `package`, `fram
    a real `src`. No citation → drop it.
 2. **Do NOT invent flows** — each route's `flow` (route → handler → injected deps) is already derived; you
    only NAME route intents (keys are route paths).
-3. Stay at **business altitude**, not code. `confidence: "low"` when sources are thin.
+3. Stay at **business altitude**, not code. When sources are thin or ambiguous, keep `purpose`
+   conservative and skip uncertain rules rather than inventing.
 
 ## Mode B — project rollup (payload has a `contexts` field, no `sources`)
 

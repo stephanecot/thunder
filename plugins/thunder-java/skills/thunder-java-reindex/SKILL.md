@@ -66,7 +66,7 @@ make that possible — **follow them exactly**:
    > `Infer these contexts. Read each pack file and return a JSON array (one object per context, echo each id):`
    > `{"contexts":[{"id":"…","path":"/…/evidence/….json"}, …]}`
    Run **up to ~4 groups in parallel** (several Task calls in one message). Each call returns a **JSON array**
-   of `{id, name, purpose, capabilities, business_rules, intents, glossary, confidence}`.
+   of `{id, name, purpose, capabilities, business_rules, intents}`.
 
 5. **Persist the whole batch in one call**. Concatenate all the arrays the cartographer returned into a single
    JSON array, write it to a temp file, and merge it at once:
@@ -96,4 +96,4 @@ make that possible — **follow them exactly**:
 - The cartographer `Read`s the packs — **do not read `.java` files or the pack files yourself here**, and
   do not paste pack contents into a Task prompt (paths only).
 - `business_rules` must **cite their source**; if a batch returns empty/non-JSON, retry it once smaller,
-  otherwise mark those contexts `confidence: low` and continue.
+  otherwise drop those contexts (they stay stale for the next run) and report them.

@@ -52,8 +52,10 @@ function block(v, indent) {
     if (v.length === 0) return '[]';
     return '\n' + v.map((item) => {
       if (isScalar(item) || flowLen(item) <= FLOW_MAX) return `${pad}- ${flow(item)}`;
-      // non-flowable item: emit its body indented under the dash
+      // non-flowable item: hoist the first line onto the dash (`- k: v`) — one line saved per item
       const body = block(item, indent + 1);
+      const childPad = '\n' + '  '.repeat(indent + 1);
+      if (body.startsWith(childPad)) return `${pad}- ` + body.slice(childPad.length);
       return `${pad}-${body.startsWith('\n') ? body : ' ' + body}`;
     }).join('\n');
   }

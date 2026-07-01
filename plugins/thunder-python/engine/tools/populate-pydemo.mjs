@@ -28,7 +28,6 @@ for (const ctx of model.contexts) {
       { rule: 'Only a PENDING record can be approved', src: `service.py _validate_transition()` },
     ],
     intents,
-    confidence: 'high',
   };
 }
 saveFunctional(root, store);

@@ -83,8 +83,18 @@ export function emit(root, model, functional = {}) {
     if (writeIfChanged(join(dir, 'projects', name, '_index.yaml'), dump(modIndex))) changed++;
   }
 
-  if (writeIfChanged(join(dir, 'routes.yaml'), dump({ routes: model.routes.map((r) => ({ verb: r.verb, path: r.path, fn: r.fn, ctx: r.ctx })) }))) changed++;
-  const caps = model.contexts.map((c) => ({ id: c.id, purpose: functional[c.id]?.purpose || '', capabilities: functional[c.id]?.capabilities || [] }));
+  // global route table — ONE grep-friendly line per route (was 4-5 lines each)
+  const rtLine = (r) => `${r.verb} ${r.path || '/'}  ${r.fn}  (${r.ctx})`;
+  if (writeIfChanged(join(dir, 'routes.yaml'),
+    dump({ format: 'VERB path  handler_fn  (context)', routes: model.routes.map(rtLine) }))) changed++;
+
+  // grepable capability map — ONE line per context (id + purpose + capabilities together),
+  // so a single grep hit is self-sufficient (id-less multi-line hits were useless)
+  const caps = {};
+  for (const c of model.contexts) {
+    const f = functional[c.id];
+    caps[c.id] = `${f?.purpose || ''}${f?.capabilities?.length ? ` — ${f.capabilities.join('; ')}` : ''}`;
+  }
   if (writeIfChanged(join(dir, 'capability-map.yaml'), dump({ contexts: caps }))) changed++;
 
   const wanted = new Set();

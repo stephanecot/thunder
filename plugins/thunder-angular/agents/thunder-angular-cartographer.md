@@ -18,8 +18,7 @@ with **one object per input context, in the same order**, each being the Mode-A 
 
 ```json
 [ { "id": "<context id, verbatim>", "name": "...", "purpose": "...", "capabilities": ["..."],
-    "business_rules": [{"rule": "...", "src": "File:LINE"}], "intents": {"...": "..."},
-    "glossary": [{"term": "...", "def": "..."}], "confidence": "high | medium | low" } ]
+    "business_rules": [{"rule": "...", "src": "File:LINE"}], "intents": {"...": "..."} } ]
 ```
 
 - **Always echo each pack's `id`** so the engine can match results — mandatory.
@@ -40,9 +39,7 @@ The pack describes one Angular feature context: `id`, `project`, `feature`, `rou
   "business_rules": [
     {"rule": "A real UI/validation/guard rule", "src": "file.ts:LINE or the symbol proving it"}
   ],
-  "intents": { "route-path": "What the user accomplishes on this screen/route" },
-  "glossary": [ {"term": "Domain term", "def": "Concise definition"} ],
-  "confidence": "high | medium | low"
+  "intents": { "route-path": "What the user accomplishes on this screen/route" }
 }
 ```
 
@@ -51,7 +48,8 @@ The pack describes one Angular feature context: `id`, `project`, `feature`, `rou
 2. **Do NOT invent flows** — each route's `flow` (route → component → services) is already derived; you
    only NAME the route intent.
 3. `intents` keys are route paths from the pack. Stay at the **user/feature altitude**, not code.
-4. `confidence: "low"` when sources are thin.
+4. When sources are thin or ambiguous, keep `purpose` conservative and skip uncertain rules
+   rather than inventing.
 
 ## Mode B — project rollup (payload has a `contexts` field, no `sources`)
 
