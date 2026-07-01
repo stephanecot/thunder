@@ -10,14 +10,53 @@ the version a change applies to is noted inline. Per-plugin measured results liv
 
 | Plugin | Version |
 |---|---|
-| `thunder-java` | 0.1.12 |
-| `thunder-angular` | 0.1.13 |
-| `thunder-python` | 0.1.7 |
-| `thunder-node` | 0.0.5 |
-| `thunder-react` | 0.0.4 |
-| `thunder-mind` | 0.2.0 |
+| `thunder-java` | 0.1.13 |
+| `thunder-angular` | 0.1.14 |
+| `thunder-python` | 0.1.8 |
+| `thunder-node` | 0.0.6 |
+| `thunder-react` | 0.0.5 |
+| `thunder-mind` | 0.2.1 |
 
 ## [Unreleased]
+
+## [2026-07-01]
+
+### Changed
+- **All framework plugins** (`thunder-java` `0.1.13`, `thunder-angular` `0.1.14`, `thunder-python` `0.1.8`,
+  `thunder-node` `0.0.6`, `thunder-react` `0.0.5`) — **token-lean emitted artifacts**:
+  - **YAML emitter**: non-flowable list items hoist their first key onto the dash line (`- verb: POST`) —
+    no more orphan dashes (java realdemo: 6 362 wasted lines → 0, ~3% of every index read);
+  - **`endpoints.yaml` / `routes.yaml`**: ONE grep-friendly line per endpoint/route
+    (`VERB path  Controller.fn  Req -> Resp  (ctx)`) — java realdemo: 29 575 → 20 923 tok (**−29%**) on
+    "list all endpoints", the costliest sweep-bench query;
+  - **`capability-map.yaml`**: mapping `id: "purpose — capabilities"`, one line per context (**−59%** on
+    realdemo) — a single grep hit now carries id + purpose + capabilities (multi-line hits used to come
+    back without their id, useless on their own);
+  - **cartographer**: `glossary`/`confidence` removed from the output schema — generated and stored but
+    never emitted to any artifact (pure Haiku output waste per context).
+  BENCHMARK.md re-measured: java sweep aggregate 67 735 → **59 783 tok** (95/95 wins kept).
+- **`thunder-mind`** `0.2.1` — same token treatment: fixed YAML emitter (orphan dashes gone from the
+  session-injected `brief.yaml`), `domain-map.yaml` ONE line per decision (**−36%** at 200 decisions,
+  grep hits now self-sufficient), Tier-3 `cache-answer` section added to the recall skill (the answer
+  cache was read but never written), scribe gained a **batch mode** for harvest (one sub-agent for N
+  candidates instead of N boots) and an `evidence` output field, `add` defaults the author to
+  `git config user.name`, and CLI/session messages are English (the index language).
+
+### Fixed
+- **`thunder-mind`** `0.2.1`:
+  - **`capture-hint` hook is now opt-in and precise** — it only speaks in projects with `.thunder/mind/`
+    (it used to inject reminders into every repo of every plugin user) and the French cues require a
+    verbal rule form ("il faut toujours…") — an incidental "toujours" no longer triggers it;
+  - **hand-edited decisions parse safely** — folded/literal block scalars (`key: >` / `key: |`) are
+    parsed instead of silently storing `">"` as the value, and ` #` inline comments are stripped per
+    YAML semantics;
+  - **`evidence` false positives** — `v2.0`, `RFC 7807.1`, `PR #245`, URLs are no longer treated as file
+    paths (no more phantom `evidence-missing`);
+  - **range-aware evidence drift** — `file.sql:12` evidence now hashes the cited lines, so an unrelated
+    edit elsewhere in the file no longer flags the decision stale (legacy whole-file hashes still work);
+  - **`tier3-bench.mjs`** (a shared tool assuming a framework model) is no longer synced into
+    thunder-mind, where it crashed on import — `shared/sync.mjs` supports per-entry exclusions; mind's
+    own `tools/bench.mjs` already measures the Tier-3 layer.
 
 ## [2026-06-30]
 
